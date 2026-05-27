@@ -10,15 +10,16 @@
 
 ## 当前状态
 
-前端项目已经放在仓库主目录，和 Spring Boot 后端共用一个仓库。开发时后端仍然由 IDEA 或 Maven 启动，前端由 Vite 启动。
+项目现在是单仓库下的前后端分离结构：`backend` 放 Spring Boot 后端，`frontend` 放 Vue 3 前端。开发时后端仍然由 IDEA 或 Maven 启动，前端由 Vite 启动。
 
 常用命令：
 
 ```powershell
+cd frontend
 npm install
 npm run dev
 npm run lint
 npm run build
 ```
 
-后端接口通过 `/api` 代理到 `http://localhost:8080`，这样浏览器不会直接跨域访问后端。
+后端接口通过 `/api` 代理到 `http://localhost:8080`，这样浏览器不会直接跨域访问后端。退出登录已经接入后端的 `POST /user/logout` 接口。

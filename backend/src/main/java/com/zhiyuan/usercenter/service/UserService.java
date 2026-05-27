@@ -3,6 +3,7 @@ package com.zhiyuan.usercenter.service;
 import com.zhiyuan.usercenter.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.apache.coyote.Request;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -33,6 +34,15 @@ public interface UserService extends IService<User> {
      */
     User userLogin(String userAccount, String userPassword, HttpServletRequest request);
 
+    /**
+     * 用户退出登录
+     *
+     * @param request Web请求
+     */
+    void userLogout(HttpServletRequest request);
+
     @NonNull User getSafeUser(User user);
+
+
 }
 

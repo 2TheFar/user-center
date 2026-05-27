@@ -7,20 +7,20 @@
 前端选了 Vite，不用 Vue CLI。目录也按比较普通的方式拆开：
 
 ```text
-src/api
-src/components
-src/router
-src/stores
-src/styles
-src/types
-src/views
+frontend/src/api
+frontend/src/components
+frontend/src/router
+frontend/src/stores
+frontend/src/styles
+frontend/src/types
+frontend/src/views
 ```
 
 登录、注册、用户管理三个页面足够覆盖当前后端能力。没有加个人中心、角色配置、菜单权限这类看起来很完整但后端并不支持的页面。
 
 ## 有些功能不能假装有
 
-退出登录就是一个例子。后端没有 logout 接口，所以前端不能装作已经把 Session 清掉了。现在按钮叫“退出登录”，实际行为是清理前端状态并跳回登录页；文档里也把这个限制写清楚了。
+退出登录一开始就是一个例子。之前后端没有 logout 接口，前端不能装作已经把 Session 清掉了。现在后端补了 `POST /user/logout`，前端也已经接上：后端返回成功后才清理前端状态并跳回登录页。
 
 刷新恢复登录态也是同理。没有 current user 接口，就不能稳定恢复 Pinia 中的当前用户。用户管理接口是否能访问，仍然以后端 Session 校验结果为准。
 
@@ -36,9 +36,8 @@ src/views
 
 ## 下一步最值得做什么
 
-如果后端继续补功能，建议先补这两个接口：
+如果后端继续补功能，建议先补这个接口：
 
 - `/user/current`
-- `/user/logout`
 
-这两个接口一有，前端就能把页面刷新后的登录恢复和真正退出登录补完整。相比继续加页面，这两个接口对用户体验的提升更直接。
+这个接口一有，前端就能把页面刷新后的登录恢复补完整。相比继续加页面，它对用户体验的提升更直接。

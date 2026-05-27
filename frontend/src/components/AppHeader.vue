@@ -33,7 +33,7 @@
       <span class="header-user">
         {{ userStore.currentUser?.userAccount || '未登录' }}
       </span>
-      <a-button v-if="userStore.currentUser" type="text" danger @click="logout">
+      <a-button v-if="userStore.currentUser" type="text" danger :loading="logoutLoading" @click="logout">
         <template #icon>
           <LogoutOutlined />
         </template>
@@ -44,16 +44,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import { LoginOutlined, LogoutOutlined, TeamOutlined, UserAddOutlined } from '@ant-design/icons-vue';
 
+import { logoutUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const logoutLoading = ref(false);
 
 const isUsersPage = computed(() => route.path === '/users' || route.path === '/');
 const isLoginPage = computed(() => route.path === '/login');
@@ -71,9 +73,22 @@ function goRegister() {
   void router.push('/register');
 }
 
-function logout() {
-  userStore.clearCurrentUser();
-  message.success('已退出当前前端登录状态');
-  void router.push('/login');
+async function logout() {
+  logoutLoading.value = true;
+  try {
+    const success = await logoutUser();
+    if (!success) {
+      message.error('退出登录失败，请稍后重试');
+      return;
+    }
+
+    userStore.clearCurrentUser();
+    message.success('退出登录成功');
+    await router.push('/login');
+  } catch {
+    message.error('退出登录失败，请确认后端服务和登录状态');
+  } finally {
+    logoutLoading.value = false;
+  }
 }
 </script>

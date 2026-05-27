@@ -46,15 +46,15 @@ http://localhost:8080/user/search
 
 - `POST /user/register`
 - `POST /user/login`
+- `POST /user/logout`
 - `GET /user/search`
 - `POST /user/delete`
 
 没有看到：
 
 - `GET /user/current`
-- `POST /user/logout`
 
-所以前端在登录成功后可以保存用户信息，但刷新页面后没有官方接口恢复当前用户。退出登录也只能清理前端状态，不能通知后端 Session 失效。
+所以前端在登录成功后可以保存用户信息，但刷新页面后没有官方接口恢复当前用户。退出登录已经能通知后端清理 Session，然后再清理前端状态。
 
 ## 启动时的一个小坑
 

@@ -9,6 +9,10 @@ export function loginUser(payload: LoginPayload) {
   return request.post<unknown, User | null>('/user/login', payload);
 }
 
+export function logoutUser() {
+  return request.post<unknown, boolean>('/user/logout');
+}
+
 export function searchUsers(username?: string) {
   return request.get<unknown, User[] | null>('/user/search', {
     params: {

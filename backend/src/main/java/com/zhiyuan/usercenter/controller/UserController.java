@@ -81,6 +81,16 @@ public class UserController {
         return userService.removeById(id);
     }
 
+    // 退出登录方法
+    @PostMapping("/logout")
+    public boolean userLogout(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        userService.userLogout(request);
+        return true;
+    }
+
     /**
      * 是否为管理员
      *
