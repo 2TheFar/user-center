@@ -1,10 +1,13 @@
 # user-center
 
-`user-center` 是一个基于 Spring Boot 的用户中心后端项目，当前聚焦于用户注册、登录、登录态维护、管理员查询用户和管理员删除用户等基础能力。项目使用 MyBatis-Plus 访问 MySQL，通过 Session 保存登录态，适合作为用户体系、权限控制和后续业务系统登录模块的起点。
+`user-center` 是一个基于 Spring Boot 的用户中心项目，当前聚焦于用户注册、登录、登录态维护、注册码准入、管理员查询用户和管理员删除用户等基础能力。项目使用 MyBatis-Plus 访问 MySQL，通过 Session 保存登录态，适合作为用户体系、权限控制和后续业务系统登录模块的起点。
 
 ## 项目功能
 
-- 用户注册：校验账号、密码、确认密码，检查账号唯一性，并写入数据库。
+- 用户注册：校验账号、密码、确认密码和注册码，检查账号唯一性，并写入数据库。
+- 注册码准入：用户注册前必须持有可用注册码；注册成功后注册码会被标记为已使用。
+- 管理员生成注册码：管理员可生成 12 位大小写字母和数字混合的唯一注册码。
+- 注册码校验：支持检查注册码格式是否正确、是否存在且未使用。
 - 用户登录：校验账号密码，登录成功后返回脱敏用户信息，并把用户登录态写入 Session。
 - 用户退出登录：移除当前 Session 中的用户登录态。
 - 用户脱敏：对外返回用户信息时移除密码、逻辑删除标记、更新时间等敏感或内部字段。
@@ -39,17 +42,23 @@ user-center
 |   |   |   |-- constant
 |   |   |   |   `-- UserConstant.java      # 用户登录态、角色常量
 |   |   |   |-- controller
-|   |   |   |   `-- UserController.java    # 用户相关 HTTP 接口
+|   |   |   |   |-- RegisterCodeController.java # 注册码相关 HTTP 接口
+|   |   |   |   `-- UserController.java       # 用户相关 HTTP 接口
 |   |   |   |-- mapper
-|   |   |   |   `-- UserMapper.java        # MyBatis-Plus Mapper
+|   |   |   |   |-- RegisterCodeMapper.java     # 注册码 Mapper
+|   |   |   |   `-- UserMapper.java           # 用户 Mapper
 |   |   |   |-- model/domain
+|   |   |   |   |-- RegisterCode.java      # 注册码实体，对应 register_code 表
 |   |   |   |   |-- User.java              # 用户实体，对应 user 表
 |   |   |   |   `-- request
 |   |   |   |       |-- UserLoginRequest.java
 |   |   |   |       `-- UserRegisterRequest.java
 |   |   |   `-- service
-|   |   |       |-- UserService.java        # 用户服务接口
-|   |   |       `-- impl/UserServiceImpl.java
+|   |   |       |-- RegisterCodeService.java # 注册码服务接口
+|   |   |       |-- UserService.java         # 用户服务接口
+|   |   |       `-- impl
+|   |   |           |-- RegisterCodeServiceImpl.java
+|   |   |           `-- UserServiceImpl.java
 |   |   `-- resources
 |   |       |-- application.yaml            # 应用、数据库、MyBatis-Plus 配置
 |   |       `-- mapper/UserMapper.xml       # User 字段映射
@@ -120,7 +129,28 @@ CREATE TABLE IF NOT EXISTS `user` (
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COMMENT='用户';
+
+CREATE TABLE IF NOT EXISTS `register_code` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `code` VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '注册码',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态：0-未使用，1-已使用',
+  `usedBy` BIGINT NULL COMMENT '使用该注册码注册的用户 id',
+  `createTime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updateTime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `isDeleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除：0-未删除，1-已删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COMMENT='注册码';
 ```
+
+注册码说明：
+
+- `code` 使用 `utf8mb4_bin` 排序规则，确保大小写敏感。
+- `status = 0` 表示未使用，`status = 1` 表示已使用。
+- `usedBy` 保存使用该注册码注册成功的用户 ID，目前是逻辑关联，不强制使用数据库外键。
 
 如果需要测试管理员接口，可以先注册一个用户，然后将其设置为管理员：
 
@@ -182,14 +212,15 @@ http://localhost:8080
 .\mvnw.cmd test
 ```
 
-注意：当前测试依赖真实 MySQL 数据库和现有数据状态。例如 `UserServiceTest#userRegister` 中会校验账号重复场景，期望数据库中已经存在 `qq1234` 账号；同时测试也会写入 `testAccount1`。如果数据库为空或重复执行测试，可能需要先清理或准备测试数据。
+注意：当前测试依赖真实 MySQL 数据库和现有数据状态。例如 `UserServiceTest#userRegister` 中会校验账号重复场景，期望数据库中已经存在 `qq1234` 账号；同时成功注册场景会使用固定注册码并写入 `testAccount1`。如果数据库为空、缺少可用注册码或重复执行测试，可能需要先清理或准备测试数据。
 
 ## 接口文档
 
-接口统一前缀：
+当前主要接口前缀：
 
 ```text
 /user
+/register-code
 ```
 
 当前接口直接返回业务对象、布尔值、数字或 `null`，还没有统一响应包装。
@@ -207,7 +238,8 @@ Content-Type: application/json
 {
   "userAccount": "testAccount1",
   "userPassword": "testPassword1",
-  "confirmPassword": "testPassword1"
+  "confirmPassword": "testPassword1",
+  "registerCode": "AbC123xYz789"
 }
 ```
 
@@ -228,14 +260,73 @@ Content-Type: application/json
 | `-4` | 账号包含特殊字符，当前仅允许英文字母、数字、下划线 |
 | `-5` | 两次输入的密码不一致 |
 | `-6` | 账号已存在，或保存用户失败 |
+| `-7` | 注册码无效、不存在或已被使用 |
+| `-8` | 保存用户失败 |
 | `null` | Controller 层收到空请求体或必要字段为空 |
+
+注意：如果用户已经保存成功，但消费注册码时失败，当前实现会抛出运行时异常并触发事务回滚；项目还没有统一异常处理，这类情况可能表现为 HTTP 500。
 
 示例：
 
 ```bash
 curl -X POST http://localhost:8080/user/register \
   -H "Content-Type: application/json" \
-  -d '{"userAccount":"testAccount1","userPassword":"testPassword1","confirmPassword":"testPassword1"}'
+  -d '{"userAccount":"testAccount1","userPassword":"testPassword1","confirmPassword":"testPassword1","registerCode":"AbC123xYz789"}'
+```
+
+### 管理员生成注册码
+
+```http
+POST /register-code/generate
+```
+
+权限要求：
+
+- 必须已登录。
+- 当前 Session 中的用户 `userRole` 必须为 `1`。
+
+响应：
+
+```json
+"AbC123xYz789"
+```
+
+返回值说明：
+
+| 返回值 | 含义 |
+| --- | --- |
+| 12 位字符串 | 生成成功，返回新注册码 |
+| `null` | 未登录、非管理员，或生成失败 |
+
+示例：
+
+```bash
+curl -X POST http://localhost:8080/register-code/generate \
+  -H "Cookie: JSESSIONID=你的会话ID"
+```
+
+### 校验注册码
+
+```http
+GET /register-code/check?code=AbC123xYz789
+```
+
+行为：
+
+- 校验 `code` 是否为 12 位大小写字母或数字。
+- 校验数据库中是否存在该注册码，且 `status = 0`。
+- 只返回是否可用，不区分“不存在”和“已使用”。
+
+响应：
+
+```json
+true
+```
+
+示例：
+
+```bash
+curl "http://localhost:8080/register-code/check?code=AbC123xYz789"
 ```
 
 ### 用户登录
@@ -405,13 +496,27 @@ curl -X POST http://localhost:8080/user/delete \
 
 注册逻辑位于 `UserServiceImpl#userRegister`：
 
-- `userAccount`、`userPassword`、`confirmPassword` 不能为空。
+- `userAccount`、`userPassword`、`confirmPassword`、`registerCode` 不能为空；Controller 层遇到空值会直接返回 `null`。
 - 账号长度不能小于 6。
 - 密码和确认密码长度不能小于 8。
 - 账号只能包含英文字母、数字和下划线，正则为 `^[a-zA-Z0-9_]+$`。
 - 密码和确认密码必须完全一致。
 - 账号不能重复。
+- 注册码必须存在、未使用，且格式为 12 位大小写字母或数字。
 - 密码存储前会使用固定盐值 `kawaii` 拼接原始密码，再进行 MD5 摘要。
+- 用户保存成功后会消费注册码，将 `register_code.status` 更新为 `1`，并把 `usedBy` 写为新用户 ID。
+- 用户创建和注册码消费处于同一个事务中；如果注册码消费失败，会抛出异常并回滚用户创建。
+
+### 注册码规则
+
+注册码逻辑位于 `RegisterCodeServiceImpl`：
+
+- 注册码长度固定为 12。
+- 字符集为 `a-zA-Z0-9`，区分大小写。
+- 使用 `SecureRandom` 随机生成。
+- `code` 字段有唯一索引，极小概率重复时会重新生成。
+- `checkCode` 只判断格式正确、存在且未使用。
+- `useCode` 通过 `WHERE code = ? AND status = 0` 更新状态，避免同一个注册码被并发重复消费。
 
 ### 登录校验
 
@@ -477,13 +582,26 @@ curl -X POST http://localhost:8080/user/delete \
 | `isDeleted` | `TINYINT` | 逻辑删除标记 |
 | `userRole` | `INT` | 用户角色，0-普通用户，1-管理员 |
 
+`RegisterCode` 实体对应数据库中的 `register_code` 表：
+
+| 字段 | 类型建议 | 说明 |
+| --- | --- | --- |
+| `id` | `BIGINT` | 主键，自增 |
+| `code` | `VARCHAR` | 注册码，12 位大小写字母和数字 |
+| `status` | `TINYINT` | 状态：0-未使用，1-已使用 |
+| `usedBy` | `BIGINT` | 使用该注册码注册成功的用户 ID |
+| `createTime` | `DATETIME` | 创建时间 |
+| `updateTime` | `DATETIME` | 更新时间 |
+| `isDeleted` | `TINYINT` | 逻辑删除标记 |
+
 由于 `map-underscore-to-camel-case` 当前设置为 `false`，数据库字段名需要保持 `userAccount`、`userPassword`、`avatarUrl` 这类驼峰命名，否则需要同步调整配置或 Mapper 映射。
 
 ## 开发提示
 
-- `UserMapper` 继承 `BaseMapper<User>`，基础 CRUD 由 MyBatis-Plus 提供。
-- `UserService` 继承 `IService<User>`，可以直接使用 `save`、`list`、`count`、`removeById` 等通用方法。
+- `UserMapper` 和 `RegisterCodeMapper` 继承 `BaseMapper`，基础 CRUD 由 MyBatis-Plus 提供。
+- `UserService` 和 `RegisterCodeService` 继承 `IService`，可以直接使用 `save`、`list`、`count`、`removeById` 等通用方法。
 - `UserController` 当前只做了简单参数判空和权限判断，复杂错误码主要由 Service 返回。
+- `RegisterCodeController#generateCode` 复用 `UserController#isAdmin` 判断管理员权限。
 - `removeById` 在当前 MyBatis-Plus 逻辑删除配置下会更新 `isDeleted`，而不是物理删除记录。
 - 当前项目没有统一异常处理、统一响应对象和全局错误码，接口调用方需要直接处理 `null`、负数、布尔值等不同返回形式。
 
@@ -506,6 +624,16 @@ curl -X POST http://localhost:8080/user/delete \
 - 数据库中 `userPassword` 是否是通过当前代码生成的 MD5 值。
 - 账号是否只包含英文字母、数字和下划线。
 - 账号长度是否不少于 6，密码长度是否不少于 8。
+
+### 注册码不可用
+
+检查：
+
+- 注册码是否为 12 位大小写字母或数字。
+- `register_code` 表中是否存在该注册码。
+- `register_code.status` 是否为 `0`。
+- 该注册码是否已经被其他用户注册消费。
+- 如果要测试大小写敏感，请确认 `code` 字段使用了 `utf8mb4_bin` 这类大小写敏感排序规则。
 
 ### 管理员接口返回 null 或 false
 

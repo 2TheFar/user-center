@@ -49,12 +49,30 @@ http://localhost:8080/user/search
 - `POST /user/logout`
 - `GET /user/search`
 - `POST /user/delete`
+- `POST /register-code/generate`
+- `GET /register-code/check`
 
 没有看到：
 
 - `GET /user/current`
 
 所以前端在登录成功后可以保存用户信息，但刷新页面后没有官方接口恢复当前用户。退出登录已经能通知后端清理 Session，然后再清理前端状态。
+
+## 注册码接口联调记录
+
+注册码模块目前有三个关键路径：
+
+- 注册接口 `POST /user/register` 需要额外提交 `registerCode`。
+- 管理员生成接口 `POST /register-code/generate` 依赖当前 Session 中的管理员身份。
+- 校验接口 `GET /register-code/check?code=xxx` 返回布尔值，只表示“是否可用”，不会细分不存在、格式错误或已使用。
+
+前端当前设计：
+
+- 注册页只提供注册码输入框，提交注册时交给后端做最终校验。
+- 管理员用户管理页放“生成注册码”和“校验注册码”，方便手动测试这两个接口。
+- 前端本地只做 12 位大小写字母或数字的格式校验，业务可用性以后端返回为准。
+
+一个容易误解的点是：校验接口返回 `false` 时，前端无法知道具体原因，只能提示“注册码无效或已被使用”。如果以后想区分“不存在”和“已使用”，后端需要从 `boolean` 改成状态码或响应对象。
 
 ## 启动时的一个小坑
 
