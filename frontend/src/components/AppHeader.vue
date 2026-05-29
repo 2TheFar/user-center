@@ -12,13 +12,13 @@
         </template>
         用户管理
       </a-button>
-      <a-button v-if="!isLoginPage" type="text" @click="goLogin">
+      <a-button v-if="showGuestLinks && !isLoginPage" type="text" @click="goLogin">
         <template #icon>
           <LoginOutlined />
         </template>
         登录
       </a-button>
-      <a-button v-if="!isRegisterPage" type="text" @click="goRegister">
+      <a-button v-if="showGuestLinks && !isRegisterPage" type="text" @click="goRegister">
         <template #icon>
           <UserAddOutlined />
         </template>
@@ -60,6 +60,9 @@ const logoutLoading = ref(false);
 const isUsersPage = computed(() => route.path === '/users' || route.path === '/');
 const isLoginPage = computed(() => route.path === '/login');
 const isRegisterPage = computed(() => route.path === '/register');
+const showGuestLinks = computed(
+  () => !userStore.currentUser?.id && !userStore.currentUser?.userAccount,
+);
 
 function goUsers() {
   void router.push('/users');

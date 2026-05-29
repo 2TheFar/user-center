@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,10 +31,11 @@ public class UserController {
         String userAccount = userRegisterRequest.getUserAccount();
         String userPassword = userRegisterRequest.getUserPassword();
         String confirmPassword = userRegisterRequest.getConfirmPassword();
-        if (StringUtils.isAnyBlank(userAccount, userPassword, confirmPassword)) {
+        String registerCode = userRegisterRequest.getRegisterCode();
+        if (StringUtils.isAnyBlank(userAccount, userPassword, confirmPassword,registerCode)) {
             return null;
         }
-        return userService.userRegister(userAccount, userPassword, confirmPassword);
+        return userService.userRegister(userAccount, userPassword, confirmPassword,registerCode);
     }
 
     // 登录接口方法
@@ -94,10 +94,10 @@ public class UserController {
     /**
      * 是否为管理员
      *
-     * @param request
-     * @return
+     * @param request 网络请求
+     * @return 是就true不是就false
      */
-    private boolean isAdmin(HttpServletRequest request) {
+    public boolean isAdmin(HttpServletRequest request) {
         Object attribute = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
         if (attribute == null) {
             return false;

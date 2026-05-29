@@ -3,7 +3,6 @@ package com.zhiyuan.usercenter.service;
 import com.zhiyuan.usercenter.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.apache.coyote.Request;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -20,9 +19,10 @@ public interface UserService extends IService<User> {
      * @param userAccount     账号
      * @param userPassword    密码
      * @param confirmPassword 确认密码
+     * @param registerCode    注册码
      * @return 返回新账号的id
      */
-    long userRegister(String userAccount, String userPassword, String confirmPassword);
+    long userRegister(String userAccount, String userPassword, String confirmPassword, String registerCode);
 
     /**
      * 用户登录

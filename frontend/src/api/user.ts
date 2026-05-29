@@ -5,6 +5,16 @@ export function registerUser(payload: RegisterPayload) {
   return request.post<unknown, number | null>('/user/register', payload);
 }
 
+export function generateRegisterCode() {
+  return request.post<unknown, string | null>('/register-code/generate');
+}
+
+export function checkRegisterCode(code: string) {
+  return request.get<unknown, boolean>('/register-code/check', {
+    params: { code },
+  });
+}
+
 export function loginUser(payload: LoginPayload) {
   return request.post<unknown, User | null>('/user/login', payload);
 }

@@ -15,4 +15,7 @@ public class UserRegisterRequest implements Serializable {
     private String userAccount;
     private String userPassword;
     private String confirmPassword;
+
+    // 追加注册码
+    private String registerCode;
 }

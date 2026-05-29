@@ -20,4 +20,5 @@ export interface RegisterPayload {
   userAccount: string;
   userPassword: string;
   confirmPassword: string;
+  registerCode: string;
 }

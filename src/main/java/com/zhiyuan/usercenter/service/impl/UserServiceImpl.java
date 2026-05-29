@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyuan.usercenter.mapper.UserMapper;
 import com.zhiyuan.usercenter.model.domain.User;
+import com.zhiyuan.usercenter.service.RegisterCodeService;
 import com.zhiyuan.usercenter.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.DigestUtils;
 
 import com.zhiyuan.usercenter.constant.UserConstant;
@@ -33,8 +36,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Resource
     private UserMapper userMapper;
 
+    @Resource
+    private RegisterCodeService registerCodeService;
+
     @Override
-    public long userRegister(String userAccount, String userPassword, String confirmPassword) {
+    @Transactional(rollbackFor = Exception.class)//开启事务管理（只要抛出 Exception 或它的子类异常，就回滚事务）
+    public long userRegister(String userAccount, String userPassword, String confirmPassword, String registerCode) {
         // 1. 校验
         // 不能为空
         if (StringUtils.isAnyBlank(userAccount, userPassword, confirmPassword)) {
@@ -48,8 +55,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (userPassword.length() < 8 || confirmPassword.length() < 8) {
             return -3;
         }
-        // 账号不能包含特殊字符
         /*
+         * 账号不能包含特殊字符
          * ^            // 从字符串开头开始匹配
          * [a-zA-Z0-9_] // 只允许英文字母、数字、下划线
          * +            // 至少出现一次
@@ -70,6 +77,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (count > 0) {
             return -6;
         }
+        /*
+         * 注册码是否可用
+         *
+         * useCode已经包含一模一样的校验，就算不提前校验也可以用，但不够标准
+         *
+         * 推荐流程：
+         * 先 checkCode：提前判断，给用户明确错误
+         * 再 useCode：真正消费，防止并发重复使用
+         *
+         * 提前校验的意义在于：
+         * 1. 提前失败，少做无意义操作：提前结束流程
+         * 2. 错误码更清楚：确保了可以使用，useCode还失败，那么就可能是并发抢占、数据库更新失败、极端情况下状态变化
+         */
+        if (!registerCodeService.checkCode(registerCode)) {
+            return -7;
+        }
 
         // 2. 加密
         // MD5 加密
@@ -82,10 +105,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         boolean saveResult = this.save(user);
         // 实际类型是Long，返回类型是long，当保存失败时，Long的值为null，拆箱会出错，所以保存失败时不直接返回id
         if (!saveResult) {
-            return -6;
+            return -8;
         }
 
-        // 纳尼？这个user竟然和数据库是同步的？还会反过来给user赋值的哦
+        // 纳尼？这个user竟然和数据库是同步的？还会反过来给user赋值id的哦
+        // 使用注册码
+        boolean useCodeResult = registerCodeService.useCode(registerCode, user.getId());
+        if (!useCodeResult) {
+            // 关键：用户创建成功，但注册码消费失败，要回滚用户创建
+            // 不抛异常的情况下，要手动标记当前事务状态 = 只能回滚，不能提交
+            // TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            throw new RuntimeException("注册码消费失败");
+        }
+
         return user.getId();
     }
 
@@ -150,6 +182,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     /**
      * 用户脱敏
+     *
      * @param user
      * @return
      */

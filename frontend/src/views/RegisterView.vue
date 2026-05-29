@@ -44,6 +44,19 @@
           </a-input-password>
         </a-form-item>
 
+        <a-form-item label="注册码" name="registerCode">
+          <a-input
+            v-model:value="formState.registerCode"
+            placeholder="请输入 12 位注册码"
+            allow-clear
+            autocomplete="off"
+          >
+            <template #prefix>
+              <KeyOutlined />
+            </template>
+          </a-input>
+        </a-form-item>
+
         <a-button type="primary" html-type="submit" block :loading="loading">注册</a-button>
       </a-form>
 
@@ -58,7 +71,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { LockOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons-vue';
+import { KeyOutlined, LockOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons-vue';
 import { message, type FormProps } from 'ant-design-vue';
 
 import AuthShell from '@/components/AuthShell.vue';
@@ -72,6 +85,7 @@ const formState = reactive<RegisterPayload>({
   userAccount: '',
   userPassword: '',
   confirmPassword: '',
+  registerCode: '',
 });
 
 const registerErrorText: Record<number, string> = {
@@ -81,6 +95,8 @@ const registerErrorText: Record<number, string> = {
   [-4]: '账号只能包含字母、数字和下划线',
   [-5]: '两次输入的密码不一致',
   [-6]: '账号已存在或保存失败',
+  [-7]: '注册码无效或已被使用',
+  [-8]: '注册失败，注册码消费失败',
 };
 
 const rules: FormProps['rules'] = {
@@ -98,12 +114,23 @@ const rules: FormProps['rules'] = {
       trigger: 'blur',
     },
   ],
+  registerCode: [
+    { required: true, message: '请输入注册码', trigger: 'blur' },
+    {
+      pattern: /^[a-zA-Z0-9]{12}$/,
+      message: '注册码必须是 12 位大小写字母或数字',
+      trigger: 'blur',
+    },
+  ],
 };
 
 async function handleRegister() {
   loading.value = true;
   try {
-    const result = await registerUser(formState);
+    const result = await registerUser({
+      ...formState,
+      registerCode: formState.registerCode.trim(),
+    });
     if (typeof result === 'number' && result > 0) {
       message.success('注册成功，请登录');
       await router.push('/login');

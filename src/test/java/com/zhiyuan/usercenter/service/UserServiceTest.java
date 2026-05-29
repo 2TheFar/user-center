@@ -1,7 +1,5 @@
 package com.zhiyuan.usercenter.service;
 
-import java.util.Date;
-
 import com.zhiyuan.usercenter.model.domain.User;
 import jakarta.annotation.Resource;
 import org.junit.jupiter.api.Assertions;
@@ -40,38 +38,39 @@ public class UserServiceTest {
         String userAccount = "";
         String userPassword = "testPassword1";
         String confirmPassword = "testPassword1";
+        String registerCode = "123456789abc";
         // 不为空
-        long result = userService.userRegister(userAccount, userPassword, confirmPassword);
+        long result = userService.userRegister(userAccount, userPassword, confirmPassword, registerCode);
         Assertions.assertEquals(-1, result);
         // 测账号长度
         userAccount = "test";
-        result = userService.userRegister(userAccount, userPassword, confirmPassword);
+        result = userService.userRegister(userAccount, userPassword, confirmPassword, registerCode);
         Assertions.assertEquals(-2, result);
         // 测密码长度
         userAccount = "testAccount1";
         userPassword = "test";
         confirmPassword = "test";
-        result = userService.userRegister(userAccount, userPassword, confirmPassword);
+        result = userService.userRegister(userAccount, userPassword, confirmPassword, registerCode);
         Assertions.assertEquals(-3, result);
         // 测特殊字符
         userAccount += "@";
         userPassword = "testPassword1";
         confirmPassword = "testPassword1";
-        result = userService.userRegister(userAccount, userPassword, confirmPassword);
+        result = userService.userRegister(userAccount, userPassword, confirmPassword, registerCode);
         Assertions.assertEquals(-4, result);
         // 测确认密码
         userAccount = "testAccount1";
         confirmPassword = "textPassword1";
-        result = userService.userRegister(userAccount, userPassword, confirmPassword);
+        result = userService.userRegister(userAccount, userPassword, confirmPassword, registerCode);
         Assertions.assertEquals(-5, result);
         // 测重复
         userAccount = "qq1234";
         confirmPassword = "testPassword1";
-        result = userService.userRegister(userAccount, userPassword, confirmPassword);
+        result = userService.userRegister(userAccount, userPassword, confirmPassword, registerCode);
         Assertions.assertEquals(-6, result);
         // 测插入
         userAccount = "testAccount1";
-        result = userService.userRegister(userAccount, userPassword, confirmPassword);
+        result = userService.userRegister(userAccount, userPassword, confirmPassword, registerCode);
         // 断言result>0
         Assertions.assertTrue(result > 0);
     }

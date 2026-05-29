@@ -35,6 +35,31 @@
         </a-descriptions>
       </section>
 
+      <section v-if="userStore.isAdmin" class="toolbar">
+        <a-space wrap>
+          <a-button type="primary" :loading="codeGenerating" @click="handleGenerateRegisterCode">
+            <template #icon>
+              <GiftOutlined />
+            </template>
+            生成注册码
+          </a-button>
+          <a-typography-text v-if="generatedCode" code copyable>
+            {{ generatedCode }}
+          </a-typography-text>
+          <a-input-search
+            v-model:value="codeToCheck"
+            class="register-code-check"
+            placeholder="输入注册码后校验"
+            enter-button="校验"
+            allow-clear
+            :loading="codeChecking"
+            @search="handleCheckRegisterCode"
+          />
+          <a-tag v-if="codeCheckResult === true" color="success">可用</a-tag>
+          <a-tag v-else-if="codeCheckResult === false" color="error">不可用</a-tag>
+        </a-space>
+      </section>
+
       <section class="toolbar">
         <a-input-search
           v-model:value="searchKeyword"
@@ -107,17 +132,22 @@
 import { onMounted, ref } from 'vue';
 import type { TableColumnsType } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons-vue';
+import { DeleteOutlined, GiftOutlined, ReloadOutlined } from '@ant-design/icons-vue';
 
-import { deleteUser, searchUsers } from '@/api/user';
+import { checkRegisterCode, deleteUser, generateRegisterCode, searchUsers } from '@/api/user';
 import AppHeader from '@/components/AppHeader.vue';
 import { useUserStore } from '@/stores/user';
 import type { User } from '@/types/user';
 
 const userStore = useUserStore();
 const loading = ref(false);
+const codeGenerating = ref(false);
+const codeChecking = ref(false);
 const searchKeyword = ref('');
 const users = ref<User[]>([]);
+const generatedCode = ref('');
+const codeToCheck = ref('');
+const codeCheckResult = ref<boolean | null>(null);
 
 const columns: TableColumnsType<User> = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
@@ -167,6 +197,51 @@ async function handleDelete(id?: number) {
 
   message.success('删除成功');
   await fetchUsers();
+}
+
+async function handleGenerateRegisterCode() {
+  codeGenerating.value = true;
+  try {
+    const code = await generateRegisterCode();
+    if (!code) {
+      message.error('生成失败，请确认当前账号是管理员且后端 Session 有效');
+      return;
+    }
+
+    generatedCode.value = code;
+    codeToCheck.value = code;
+    codeCheckResult.value = null;
+    message.success('注册码生成成功');
+  } finally {
+    codeGenerating.value = false;
+  }
+}
+
+async function handleCheckRegisterCode() {
+  const code = codeToCheck.value.trim();
+  codeCheckResult.value = null;
+  if (!code) {
+    message.warning('请先输入注册码');
+    return;
+  }
+  if (!/^[a-zA-Z0-9]{12}$/.test(code)) {
+    message.warning('注册码必须是 12 位大小写字母或数字');
+    return;
+  }
+
+  codeChecking.value = true;
+  try {
+    const available = await checkRegisterCode(code);
+    codeCheckResult.value = available;
+    if (available) {
+      message.success('注册码可用');
+      return;
+    }
+
+    message.error('注册码无效或已被使用');
+  } finally {
+    codeChecking.value = false;
+  }
 }
 
 function formatGender(gender?: number | null) {
