@@ -2,6 +2,8 @@ package com.zhiyuan.usercenter.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zhiyuan.usercenter.common.BusinessException;
+import com.zhiyuan.usercenter.common.ErrorCode;
 import com.zhiyuan.usercenter.mapper.UserMapper;
 import com.zhiyuan.usercenter.model.domain.User;
 import com.zhiyuan.usercenter.service.RegisterCodeService;
@@ -13,7 +15,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.DigestUtils;
 
 import com.zhiyuan.usercenter.constant.UserConstant;
@@ -45,15 +46,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 1. 校验
         // 不能为空
         if (StringUtils.isAnyBlank(userAccount, userPassword, confirmPassword)) {
-            return -1;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能为空");
         }
         // 账号长度不小于6位
         if (userAccount.length() < 6) {
-            return -2;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号长度不小于6位");
         }
         // 密码长度不小于8位
         if (userPassword.length() < 8 || confirmPassword.length() < 8) {
-            return -3;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码长度不小于8位");
         }
         /*
          * 账号不能包含特殊字符
@@ -64,18 +65,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
          */
         String regex = "^[a-zA-Z0-9_]+$";
         if (!userAccount.matches(regex)) {
-            return -4;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号不能包含特殊字符");
         }
-        // 密码和确认密码相同
+        // 密码要和确认密码相同
         if (!userPassword.equals(confirmPassword)) {
-            return -5;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码要和确认密码相同");
         }
         // 账号不能重复
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();// 创建查询条件构造器
         queryWrapper.eq("userAccount", userAccount);// 设置查询条件：userAccount 字段等于 userAccount
         long count = this.count(queryWrapper);// 统计满足条件的用户数量
         if (count > 0) {
-            return -6;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号不能重复");
         }
         /*
          * 注册码是否可用
@@ -91,7 +92,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
          * 2. 错误码更清楚：确保了可以使用，useCode还失败，那么就可能是并发抢占、数据库更新失败、极端情况下状态变化
          */
         if (!registerCodeService.checkCode(registerCode)) {
-            return -7;
+            throw new BusinessException(ErrorCode.REGISTER_CODE_ERROR, "注册码不可用");
         }
 
         // 2. 加密
@@ -105,17 +106,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         boolean saveResult = this.save(user);
         // 实际类型是Long，返回类型是long，当保存失败时，Long的值为null，拆箱会出错，所以保存失败时不直接返回id
         if (!saveResult) {
-            return -8;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，请重新再试");
         }
 
         // 纳尼？这个user竟然和数据库是同步的？还会反过来给user赋值id的哦
         // 使用注册码
         boolean useCodeResult = registerCodeService.useCode(registerCode, user.getId());
         if (!useCodeResult) {
-            // 关键：用户创建成功，但注册码消费失败，要回滚用户创建
-            // 不抛异常的情况下，要手动标记当前事务状态 = 只能回滚，不能提交
-            // TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-            throw new RuntimeException("注册码消费失败");
+            /*
+             * 关键：用户创建成功，但注册码消费失败，要回滚用户创建
+             * 不抛异常的情况下，要手动标记当前事务状态 = 只能回滚，不能提交
+             * TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+             * useCode失败应该是业务异常，而不是系统异常
+             */
+            throw new BusinessException(ErrorCode.REGISTER_CODE_ERROR, "注册码使用失败，请重新再试");
         }
 
         return user.getId();
@@ -126,15 +130,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 1. 校验
         // 不能为空
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            return null;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能为空");
         }
         // 账号长度不小于6位
         if (userAccount.length() < 6) {
-            return null;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号长度不小于6位");
         }
         // 密码长度不小于8位
         if (userPassword.length() < 8) {
-            return null;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码长度不小于8位");
         }
         // 账号不能包含特殊字符
         /*
@@ -145,7 +149,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
          */
         String regex = "^[a-zA-Z0-9_]+$";
         if (!userAccount.matches(regex)) {
-            return null;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号不能包含特殊字符");
         }
 
         // 2. 加密
@@ -157,8 +161,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         queryWrapper.eq("userPassword", encryptedPassword);// 设置查询条件：userPassword 字段等于 encryptedPassword
         User user = userMapper.selectOne(queryWrapper);// 这里用userMapper的方法了，要注入，select查询
         if (user == null) {
-            log.info("User login failed, userAccount cannot match userPassword.");
-            return null;
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
         }
         // 4. 用户信息脱敏
         User safeUser = getSafeUser(user);
@@ -183,8 +186,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     /**
      * 用户脱敏
      *
-     * @param user
-     * @return
+     * @param user 原始用户
+     * @return 脱敏用户
      */
     @Override
     public @NonNull User getSafeUser(User user) {

@@ -58,13 +58,39 @@ http://localhost:8080/user/search
 
 所以前端在登录成功后可以保存用户信息，但刷新页面后没有官方接口恢复当前用户。退出登录已经能通知后端清理 Session，然后再清理前端状态。
 
+## 统一响应格式更新
+
+后端现在已经统一返回 `BaseResponse<T>`，不再直接返回数字、布尔值、对象或 `null`。
+
+成功响应统一类似：
+
+```json
+{
+  "code": 0,
+  "data": true,
+  "message": "ok"
+}
+```
+
+失败响应统一类似：
+
+```json
+{
+  "code": 40000,
+  "data": null,
+  "message": "请求参数错误"
+}
+```
+
+联调时前端需要先判断 `code === 0`，成功后再读取 `data`。业务异常由后端 `BusinessException` 抛出，再由 `GlobalExceptionHandler` 包装返回。
+
 ## 注册码接口联调记录
 
 注册码模块目前有三个关键路径：
 
 - 注册接口 `POST /user/register` 需要额外提交 `registerCode`。
 - 管理员生成接口 `POST /register-code/generate` 依赖当前 Session 中的管理员身份。
-- 校验接口 `GET /register-code/check?code=xxx` 返回布尔值，只表示“是否可用”，不会细分不存在、格式错误或已使用。
+- 校验接口 `GET /register-code/check?code=xxx` 返回 `BaseResponse<Boolean>`，其中 `data` 只表示“是否可用”，不会细分不存在和已使用；格式错误会返回注册码相关错误响应。
 
 前端当前设计：
 
@@ -72,7 +98,7 @@ http://localhost:8080/user/search
 - 管理员用户管理页放“生成注册码”和“校验注册码”，方便手动测试这两个接口。
 - 前端本地只做 12 位大小写字母或数字的格式校验，业务可用性以后端返回为准。
 
-一个容易误解的点是：校验接口返回 `false` 时，前端无法知道具体原因，只能提示“注册码无效或已被使用”。如果以后想区分“不存在”和“已使用”，后端需要从 `boolean` 改成状态码或响应对象。
+一个容易误解的点是：校验接口 `data = false` 时，前端无法知道具体原因，只能提示“注册码无效或已被使用”。如果以后想区分“不存在”和“已使用”，后端可以把 `data` 从布尔值升级成更明确的状态对象。
 
 ## 启动时的一个小坑
 

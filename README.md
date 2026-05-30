@@ -14,6 +14,7 @@
 - 管理员查询用户：管理员可按用户名模糊查询用户列表。
 - 管理员删除用户：管理员可根据用户 ID 删除用户，删除行为由 MyBatis-Plus 逻辑删除配置接管。
 - 登录态与权限：使用服务端 Session 保存 `userLoginState`，并通过 `userRole` 区分普通用户和管理员。
+- 统一响应与异常处理：接口统一返回 `BaseResponse<T>`，业务失败通过 `BusinessException` 抛出，并由全局异常处理器统一包装。
 
 ## 技术栈
 
@@ -39,6 +40,13 @@ user-center
 |   |-- main
 |   |   |-- java/com/zhiyuan/usercenter
 |   |   |   |-- UserCenterApplication.java # Spring Boot 启动类
+|   |   |   |-- common
+|   |   |   |   |-- BaseResponse.java        # 通用接口响应对象
+|   |   |   |   |-- BusinessException.java   # 业务异常
+|   |   |   |   |-- ErrorCode.java           # 业务错误码
+|   |   |   |   |-- GlobalExceptionHandler.java # 全局异常处理器
+|   |   |   |   |-- ResultUtils.java         # 响应构造工具
+|   |   |   |   `-- UserUtils.java          # 用户权限工具
 |   |   |   |-- constant
 |   |   |   |   `-- UserConstant.java      # 用户登录态、角色常量
 |   |   |   |-- controller
@@ -223,7 +231,37 @@ http://localhost:8080
 /register-code
 ```
 
-当前接口直接返回业务对象、布尔值、数字或 `null`，还没有统一响应包装。
+当前接口统一返回 `BaseResponse<T>`：
+
+```json
+{
+  "code": 0,
+  "data": {},
+  "message": "ok"
+}
+```
+
+字段说明：
+
+| 字段 | 说明 |
+| --- | --- |
+| `code` | 业务状态码，`0` 表示成功，非 `0` 表示失败 |
+| `data` | 真正的业务数据，类型由具体接口决定 |
+| `message` | 返回给前端或用户看的提示信息 |
+
+常用错误码：
+
+| 错误码 | 枚举 | 说明 |
+| --- | --- | --- |
+| `0` | `SUCCESS` | 请求成功 |
+| `40000` | `PARAMS_ERROR` | 请求参数错误 |
+| `40001` | `REGISTER_CODE_ERROR` | 注册码格式错误、不存在、已使用或不可用 |
+| `40100` | `NOT_LOGIN_ERROR` | 用户未登录 |
+| `40101` | `NO_AUTH_ERROR` | 当前用户无权限 |
+| `40400` | `NOT_FOUND_ERROR` | 请求数据不存在 |
+| `50000` | `SYSTEM_ERROR` | 系统内部异常 |
+
+业务失败会抛出 `BusinessException`，由 `GlobalExceptionHandler` 统一转换成 `BaseResponse`。Controller 不再返回 `null` 或负数错误码。
 
 ### 用户注册
 
@@ -246,25 +284,21 @@ Content-Type: application/json
 成功响应：
 
 ```json
-1
+{
+  "code": 0,
+  "data": 1,
+  "message": "ok"
+}
 ```
 
 返回值说明：
 
-| 返回值 | 含义 |
+| 字段 | 含义 |
 | --- | --- |
-| `> 0` | 注册成功，返回新用户 ID |
-| `-1` | 参数为空 |
-| `-2` | 账号长度小于 6 位 |
-| `-3` | 密码或确认密码长度小于 8 位 |
-| `-4` | 账号包含特殊字符，当前仅允许英文字母、数字、下划线 |
-| `-5` | 两次输入的密码不一致 |
-| `-6` | 账号已存在，或保存用户失败 |
-| `-7` | 注册码无效、不存在或已被使用 |
-| `-8` | 保存用户失败 |
-| `null` | Controller 层收到空请求体或必要字段为空 |
+| `data` | 注册成功后的新用户 ID |
+| `code != 0` | 注册失败，具体原因看 `message` |
 
-注意：如果用户已经保存成功，但消费注册码时失败，当前实现会抛出运行时异常并触发事务回滚；项目还没有统一异常处理，这类情况可能表现为 HTTP 500。
+注意：用户创建和注册码消费处于同一个事务中；如果注册码消费失败，会抛出业务异常并回滚用户创建。
 
 示例：
 
@@ -288,15 +322,20 @@ POST /register-code/generate
 响应：
 
 ```json
-"AbC123xYz789"
+{
+  "code": 0,
+  "data": "AbC123xYz789",
+  "message": "ok"
+}
 ```
 
 返回值说明：
 
-| 返回值 | 含义 |
+| 字段 | 含义 |
 | --- | --- |
-| 12 位字符串 | 生成成功，返回新注册码 |
-| `null` | 未登录、非管理员，或生成失败 |
+| `data` | 生成成功后的 12 位注册码 |
+| `40101` | 当前用户不是管理员 |
+| `50000` | 生成注册码失败 |
 
 示例：
 
@@ -320,7 +359,11 @@ GET /register-code/check?code=AbC123xYz789
 响应：
 
 ```json
-true
+{
+  "code": 0,
+  "data": true,
+  "message": "ok"
+}
 ```
 
 示例：
@@ -349,19 +392,23 @@ Content-Type: application/json
 
 ```json
 {
-  "id": 1,
-  "username": null,
-  "userAccount": "testAccount1",
-  "userPassword": null,
-  "avatarUrl": null,
-  "phone": null,
-  "email": null,
-  "gender": null,
-  "userStatus": 0,
-  "createTime": "2026-05-21T00:00:00.000+00:00",
-  "updateTime": null,
-  "isDeleted": null,
-  "userRole": 0
+  "code": 0,
+  "data": {
+    "id": 1,
+    "username": null,
+    "userAccount": "testAccount1",
+    "userPassword": null,
+    "avatarUrl": null,
+    "phone": null,
+    "email": null,
+    "gender": null,
+    "userStatus": 0,
+    "createTime": "2026-05-21T00:00:00.000+00:00",
+    "updateTime": null,
+    "isDeleted": null,
+    "userRole": 0
+  },
+  "message": "ok"
 }
 ```
 
@@ -371,7 +418,7 @@ Content-Type: application/json
 Session key: userLoginState
 ```
 
-失败时返回 `null`。常见失败原因包括账号或密码为空、账号长度不合法、密码长度不合法、账号包含特殊字符、账号密码不匹配。
+失败时返回统一错误响应。常见失败原因包括账号或密码为空、账号长度不合法、密码长度不合法、账号包含特殊字符、账号密码不匹配。
 
 示例：
 
@@ -392,8 +439,8 @@ POST /user/logout
 行为：
 
 - 移除当前 Session 中的 `userLoginState`。
-- 成功返回 `true`。
-- 如果请求对象异常，返回 `false`。
+- 成功返回 `BaseResponse<Boolean>`，其中 `data = true`。
+- 如果请求对象异常，抛出业务异常并返回统一错误响应。
 
 示例：
 
@@ -422,26 +469,30 @@ GET /user/search?username=otaku
 成功响应：
 
 ```json
-[
-  {
-    "id": 1,
-    "username": "otaku",
-    "userAccount": "testAccount1",
-    "userPassword": null,
-    "avatarUrl": "https://example.com/avatar.png",
-    "phone": "13812345678",
-    "email": "123@qq.com",
-    "gender": 0,
-    "userStatus": 0,
-    "createTime": "2026-05-21T00:00:00.000+00:00",
-    "updateTime": null,
-    "isDeleted": null,
-    "userRole": 1
-  }
-]
+{
+  "code": 0,
+  "data": [
+    {
+      "id": 1,
+      "username": "otaku",
+      "userAccount": "testAccount1",
+      "userPassword": null,
+      "avatarUrl": "https://example.com/avatar.png",
+      "phone": "13812345678",
+      "email": "123@qq.com",
+      "gender": 0,
+      "userStatus": 0,
+      "createTime": "2026-05-21T00:00:00.000+00:00",
+      "updateTime": null,
+      "isDeleted": null,
+      "userRole": 1
+    }
+  ],
+  "message": "ok"
+}
 ```
 
-非管理员或未登录时返回 `null`。
+非管理员或未登录时返回统一错误响应。
 
 示例：
 
@@ -471,15 +522,21 @@ Content-Type: application/json
 响应：
 
 ```json
-true
+{
+  "code": 0,
+  "data": true,
+  "message": "ok"
+}
 ```
 
 返回值说明：
 
-| 返回值 | 含义 |
+| 字段 | 含义 |
 | --- | --- |
-| `true` | 删除成功 |
-| `false` | 未登录、非管理员、ID 非法或删除失败 |
+| `data = true` | 删除成功 |
+| `40101` | 非管理员或无权限 |
+| `40000` | ID 非法 |
+| `40400` | 用户不存在或删除失败 |
 
 示例：
 
@@ -496,7 +553,7 @@ curl -X POST http://localhost:8080/user/delete \
 
 注册逻辑位于 `UserServiceImpl#userRegister`：
 
-- `userAccount`、`userPassword`、`confirmPassword`、`registerCode` 不能为空；Controller 层遇到空值会直接返回 `null`。
+- `userAccount`、`userPassword`、`confirmPassword`、`registerCode` 不能为空。
 - 账号长度不能小于 6。
 - 密码和确认密码长度不能小于 8。
 - 账号只能包含英文字母、数字和下划线，正则为 `^[a-zA-Z0-9_]+$`。
@@ -560,7 +617,7 @@ curl -X POST http://localhost:8080/user/delete \
 | `ADMIN_ROLE` | `1` | 管理员 |
 | `USER_LOGIN_STATE` | `userLoginState` | Session 中保存登录用户的 key |
 
-管理员判断逻辑位于 `UserController#isAdmin`：从 Session 中读取 `userLoginState`，再判断 `userRole == 1`。
+管理员判断逻辑位于 `UserUtils#isAdmin`：从 Session 中读取 `userLoginState`，再判断 `userRole == 1`。
 
 ## 数据模型
 
@@ -600,10 +657,11 @@ curl -X POST http://localhost:8080/user/delete \
 
 - `UserMapper` 和 `RegisterCodeMapper` 继承 `BaseMapper`，基础 CRUD 由 MyBatis-Plus 提供。
 - `UserService` 和 `RegisterCodeService` 继承 `IService`，可以直接使用 `save`、`list`、`count`、`removeById` 等通用方法。
-- `UserController` 当前只做了简单参数判空和权限判断，复杂错误码主要由 Service 返回。
-- `RegisterCodeController#generateCode` 复用 `UserController#isAdmin` 判断管理员权限。
+- Controller 主要负责接收请求、调用 Service 和返回 `ResultUtils.success(...)`。
+- Service 负责业务校验；业务失败时抛出 `BusinessException`。
+- 全局异常处理器负责把业务异常和系统异常统一转换为 `BaseResponse`。
 - `removeById` 在当前 MyBatis-Plus 逻辑删除配置下会更新 `isDeleted`，而不是物理删除记录。
-- 当前项目没有统一异常处理、统一响应对象和全局错误码，接口调用方需要直接处理 `null`、负数、布尔值等不同返回形式。
+- 接口调用方只需要统一判断 `code` 是否为 `0`，再读取 `data`。
 
 ## 常见问题
 
@@ -635,7 +693,7 @@ curl -X POST http://localhost:8080/user/delete \
 - 该注册码是否已经被其他用户注册消费。
 - 如果要测试大小写敏感，请确认 `code` 字段使用了 `utf8mb4_bin` 这类大小写敏感排序规则。
 
-### 管理员接口返回 null 或 false
+### 管理员接口返回无权限
 
 检查：
 
@@ -649,8 +707,6 @@ curl -X POST http://localhost:8080/user/delete \
 
 ## 后续可改进方向
 
-- 增加统一响应包装，例如 `BaseResponse<T>`。
-- 增加全局异常处理和业务错误码枚举。
 - 将数据库密码、密码盐值等敏感配置移动到环境变量或独立配置文件。
 - 使用 BCrypt、Argon2 等更适合密码存储的哈希算法替代 MD5。
 - 增加获取当前登录用户接口。

@@ -3,6 +3,8 @@ package com.zhiyuan.usercenter.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zhiyuan.usercenter.common.BusinessException;
+import com.zhiyuan.usercenter.common.ErrorCode;
 import com.zhiyuan.usercenter.mapper.RegisterCodeMapper;
 import com.zhiyuan.usercenter.model.domain.RegisterCode;
 import com.zhiyuan.usercenter.service.RegisterCodeService;
@@ -72,7 +74,7 @@ public class RegisterCodeServiceImpl extends ServiceImpl<RegisterCodeMapper, Reg
                 // code 有唯一索引，极小概率重复，继续生成即可
             }
         }
-        return null;
+        throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成注册码失败");
     }
 
     @Override
@@ -86,7 +88,7 @@ public class RegisterCodeServiceImpl extends ServiceImpl<RegisterCodeMapper, Reg
          * 4. 和后面的 useCode 保持一致
          */
         if (!isValidCodeFormat(code)) {
-            return false;
+            throw new BusinessException(ErrorCode.REGISTER_CODE_ERROR, "注册码格式错误");
         }
         /*
          * 1. 创建一个查询条件对象，可以理解为准备开始拼 WHERE 条件
@@ -160,8 +162,11 @@ public class RegisterCodeServiceImpl extends ServiceImpl<RegisterCodeMapper, Reg
          * 所以最终还是必须靠 UPDATE ... WHERE status = 0 来兜底
          * 校验结果不一定对，那这个校验就失去意义了，从根本上就不需要checkCode了。
          */
-        if (!isValidCodeFormat(code) || userId == null || userId <= 0) {
-            return false;
+        if (!isValidCodeFormat(code)) {
+            throw new BusinessException(ErrorCode.REGISTER_CODE_ERROR, "注册码格式错误");
+        }
+        if (userId == null || userId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户id错误");
         }
         /*
          * 这一部分表示：我要改什么字段。

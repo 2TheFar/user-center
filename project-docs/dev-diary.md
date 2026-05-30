@@ -41,3 +41,16 @@ frontend/src/views
 - `/user/current`
 
 这个接口一有，前端就能把页面刷新后的登录恢复补完整。相比继续加页面，它对用户体验的提升更直接。
+
+## 后端统一返回补完
+
+后端现在已经补上统一响应对象和全局异常处理。接口不再混合返回 `null`、数字、布尔值和对象，而是统一返回 `BaseResponse<T>`。
+
+这次改造后，分工更清楚：
+
+- Controller 负责接收请求和返回成功响应。
+- Service 负责业务校验和业务执行。
+- 业务失败时抛 `BusinessException`。
+- `GlobalExceptionHandler` 统一把异常转成错误响应。
+
+前端下一轮联调要注意：Axios 拿到的不再是原始 `User`、`boolean` 或 `number`，而是带有 `code`、`data`、`message` 的响应对象。

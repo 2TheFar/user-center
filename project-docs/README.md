@@ -6,6 +6,7 @@
 
 - [前端开发报告](./frontend-dev-report.md)：本次 Vue 3 前端从搭建到联调的完整记录。
 - [接口联调笔记](./api-integration-notes.md)：后端接口、Session、Vite 代理和跨域问题的处理记录。
+- [后端统一返回与异常处理记录](./backend-response-exception-notes.md)：`BaseResponse<T>`、`ErrorCode`、`BusinessException` 和全局异常处理器的说明。
 - [开发随手记](./dev-diary.md)：一些更口语化的开发过程记录，方便回忆上下文。
 
 ## 当前状态
@@ -23,6 +24,8 @@ npm run build
 ```
 
 后端接口通过 `/api` 代理到 `http://localhost:8080`，这样浏览器不会直接跨域访问后端。退出登录已经接入后端的 `POST /user/logout` 接口。
+
+后端现在已经统一响应格式：Controller 返回 `BaseResponse<T>`，业务失败抛出 `BusinessException`，再由 `GlobalExceptionHandler` 转换为统一的错误响应。前端后续联调时需要优先判断 `code === 0`，再读取 `data`。
 
 注册码模块当前已经接入前端：
 

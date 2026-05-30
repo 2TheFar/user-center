@@ -1,5 +1,9 @@
 package com.zhiyuan.usercenter.controller;
 
+import com.zhiyuan.usercenter.common.BaseResponse;
+import com.zhiyuan.usercenter.common.BusinessException;
+import com.zhiyuan.usercenter.common.ErrorCode;
+import com.zhiyuan.usercenter.common.ResultUtils;
 import com.zhiyuan.usercenter.service.RegisterCodeService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -7,6 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import static com.zhiyuan.usercenter.common.UserUtils.isAdmin;
 
 /**
  * 注册码接口
@@ -17,8 +23,6 @@ public class RegisterCodeController {
     @Resource
     private RegisterCodeService registerCodeService;
 
-    @Resource
-    private UserController userController;
 
     /**
      * 管理员生成注册码
@@ -27,12 +31,13 @@ public class RegisterCodeController {
      * @return 注册码
      */
     @PostMapping("/generate")
-    public String generateCode(HttpServletRequest request) {
-        if (!userController.isAdmin(request)) {
-            return null;
+    public BaseResponse<String> generateCode(HttpServletRequest request) {
+        if (!isAdmin(request)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
 
-        return registerCodeService.generateCode();
+        String code = registerCodeService.generateCode();
+        return ResultUtils.success(code);
     }
 
     /**
@@ -42,8 +47,9 @@ public class RegisterCodeController {
      * @return 是否可用
      */
     @GetMapping("/check")
-    public boolean checkCode(String code) {
-        return registerCodeService.checkCode(code);
+    public BaseResponse<Boolean> checkCode(String code) {
+        boolean result = registerCodeService.checkCode(code);
+        return ResultUtils.success(result);
     }
 
 
