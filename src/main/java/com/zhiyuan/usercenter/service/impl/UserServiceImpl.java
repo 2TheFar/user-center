@@ -1,23 +1,24 @@
 package com.zhiyuan.usercenter.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyuan.usercenter.common.BusinessException;
 import com.zhiyuan.usercenter.common.ErrorCode;
+import com.zhiyuan.usercenter.constant.UserConstant;
 import com.zhiyuan.usercenter.mapper.UserMapper;
 import com.zhiyuan.usercenter.model.domain.User;
 import com.zhiyuan.usercenter.service.RegisterCodeService;
 import com.zhiyuan.usercenter.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
-
-import com.zhiyuan.usercenter.constant.UserConstant;
 
 /**
  * 用户服务实现类
@@ -33,6 +34,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     // 盐值，实际项目中可以放到配置文件里
     private static final String SALT = "kawaii";
+
+    private static final int MAX_TEXT_LENGTH = 256;
+
+    private static final int MAX_AVATAR_URL_LENGTH = 1024;
 
     @Resource
     private UserMapper userMapper;
@@ -183,6 +188,80 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public User updateCurrentUserProfile(User userProfile, HttpServletRequest request) {
+        /*
+         * request不为空
+         */
+        if (request == null || userProfile == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        /*
+         * session不为空
+         * getSession(false) 的意思是：
+         * 如果当前请求已经带了有效的 JSESSIONID，并且服务端找得到对应 Session，就返回这个 Session
+         * 如果没有 Session，不要新建，直接返回 null
+         *
+         * getSession()默认会在没有 Session 时新建一个空 Session
+         * 所以没有false的话session就不会为空，直接看登录态字段也能判断是否登录
+         * 但有false在session层面就能知道有没有登录，有没有拿到JSESSIONID了
+         */
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        Object userObj = session.getAttribute(UserConstant.USER_LOGIN_STATE);
+        /*
+         * 登录态不为空
+         * session不为空但是登录态为空是有可能的，
+         * 比如说直接调用request.getSession()
+         * 比如说刚刚退出
+         */
+        if (!(userObj instanceof User loginUser) || loginUser.getId() == null || loginUser.getId() <= 0) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+
+        String username = normalizeText(userProfile.getUsername());
+        String avatarUrl = normalizeText(userProfile.getAvatarUrl());
+        String phone = normalizeText(userProfile.getPhone());
+        String email = normalizeText(userProfile.getEmail());
+        Integer gender = userProfile.getGender();
+
+        /*
+         * 个人资料的校验
+         */
+        validateProfile(username, avatarUrl, phone, email, gender);
+
+        /*
+         * 构造一条 UPDATE SQL
+         * 创建一个更新条件构造器，用来拼更新语句
+         * 设置更新条件：WHERE id = 当前登录用户ID
+         * 后面的set表示要更新哪些字段
+         */
+        LambdaUpdateWrapper<User> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(User::getId, loginUser.getId())
+                .set(User::getUsername, username)
+                .set(User::getAvatarUrl, avatarUrl)
+                .set(User::getPhone, phone)
+                .set(User::getEmail, email)
+                .set(User::getGender, gender);
+
+        boolean updated = this.update(updateWrapper);
+        if (!updated) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在或资料更新失败");
+        }
+
+        User latestUser = this.getById(loginUser.getId());
+        if (latestUser == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+
+        User safeUser = getSafeUser(latestUser);
+        session.setAttribute(UserConstant.USER_LOGIN_STATE, safeUser);
+        return safeUser;
+    }
+
     /**
      * 用户脱敏
      *
@@ -203,6 +282,70 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         safeUser.setUserStatus(user.getUserStatus());
         safeUser.setCreateTime(user.getCreateTime());
         return safeUser;
+    }
+
+    /**
+     * 字符串清洗
+     * 1.去掉前后空格
+     * 2.如果去掉空格后是空字符串，就变成 null
+     *
+     * @param value 字符串
+     * @return 清洗后的字符串
+     */
+    private String normalizeText(String value) {
+        return StringUtils.trimToNull(value);
+    }
+
+    /**
+     * 校验个人资料
+     *
+     * @param username  用户名
+     * @param avatarUrl 头像
+     * @param phone     电话号码
+     * @param email     邮箱
+     * @param gender    性别
+     */
+    private void validateProfile(String username, String avatarUrl, String phone, String email, Integer gender) {
+        if (username != null && username.length() > MAX_TEXT_LENGTH) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "昵称过长");
+        }
+        if (avatarUrl != null) {
+            if (avatarUrl.length() > MAX_AVATAR_URL_LENGTH) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "头像地址过长");
+            }
+            if (!avatarUrl.startsWith("http://") && !avatarUrl.startsWith("https://")) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "头像地址必须以 http:// 或 https:// 开头");
+            }
+        }
+        /*
+         * 必须是 11 位数字
+         * 第 1 位必须是 1
+         * 第 2 位必须是 3 到 9
+         * 后面 9 位可以是任意数字 0 到 9
+         */
+        if (phone != null && (!phone.matches("^1[3-9]\\d{9}$") || phone.length() > MAX_TEXT_LENGTH)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "手机号格式不正确");
+        }
+        /*
+         * ^           从开头开始
+         * [^\s@]+     @ 前面至少 1 个字符，不能是空白字符，也不能是 @
+         * @           必须有一个 @
+         * [^\s@]+     @ 后面至少 1 个字符，不能是空白字符，也不能是 @
+         * \.          必须有一个点 .
+         * [^\s@]+     点后面至少 1 个字符，不能是空白字符，也不能是 @
+         * $           到结尾结束
+         *
+         * [ ... ]表示一个字符范围。
+         * ^如果 ^ 放在 [] 里面最前面，表示“取反”，也就是“不要这些字符”。
+         * \s表示空白字符，比如：空格、Tab、换行
+         * +表示前面的规则重复 1 次或多次。
+         */
+        if (email != null && (email.length() > MAX_TEXT_LENGTH || !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "邮箱格式不正确");
+        }
+        if (gender != null && gender != 0 && gender != 1) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "性别参数不正确");
+        }
     }
 }
 

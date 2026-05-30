@@ -22,3 +22,11 @@ export interface RegisterPayload {
   confirmPassword: string;
   registerCode: string;
 }
+
+export interface UpdateProfilePayload {
+  username?: string | null;
+  avatarUrl?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  gender?: number | null;
+}

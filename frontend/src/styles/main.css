@@ -375,6 +375,26 @@ a:hover {
   width: min(100%, 340px);
 }
 
+.profile-content {
+  width: min(1180px, calc(100% - 32px));
+}
+
+.profile-summary .current-user-main {
+  margin-bottom: 16px;
+}
+
+.profile-form-panel {
+  padding: 22px 18px 10px;
+}
+
+.profile-form {
+  max-width: 920px;
+}
+
+.profile-form .ant-form-item {
+  margin-bottom: 24px;
+}
+
 .generated-code {
   padding: 6px 10px;
   border-radius: 6px;

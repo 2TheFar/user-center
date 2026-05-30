@@ -1,5 +1,5 @@
 import request from './request';
-import type { LoginPayload, RegisterPayload, User } from '@/types/user';
+import type { LoginPayload, RegisterPayload, UpdateProfilePayload, User } from '@/types/user';
 
 export function registerUser(payload: RegisterPayload) {
   return request.post<unknown, number | null>('/user/register', payload);
@@ -25,6 +25,10 @@ export function getCurrentUser() {
 
 export function logoutUser() {
   return request.post<unknown, boolean>('/user/logout');
+}
+
+export function updateCurrentUserProfile(payload: UpdateProfilePayload) {
+  return request.post<unknown, User | null>('/user/profile/update', payload);
 }
 
 export function searchUsers(username?: string) {

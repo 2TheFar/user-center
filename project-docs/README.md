@@ -5,6 +5,7 @@
 ## 文档目录
 
 - [前端开发报告](./frontend-dev-report.md)：本次 Vue 3 前端从搭建到联调的完整记录。
+- [资料页更新日志 2026-05-31](./资料页更新_20260531.md)：普通用户资料页、资料更新接口和路由权限调整记录。
 - [前端更新日志 2026-05-30](./前端更新_20260530.md)：参考教程思路并按当前项目标准实现后的前端优化记录。
 - [CodeFather Vue 前端教程整理笔记](./codefather-vue-frontend-tutorial-notes.md)：从用户复制的教程文本中筛选出的 Vue 前端路线和当前项目适配说明。
 - [原始前端生成提示词](./original-frontend-generation-prompt.md)：早期生成当前前端项目时使用的提示词归档。
@@ -26,7 +27,7 @@ npm run lint
 npm run build
 ```
 
-后端接口通过 `/api` 代理到 `http://localhost:8080`，这样浏览器不会直接跨域访问后端。退出登录已经接入后端的 `POST /user/logout` 接口，页面刷新后的登录态恢复已经接入 `GET /user/current`。
+后端接口通过 `/api` 代理到 `http://localhost:8080`，这样浏览器不会直接跨域访问后端。退出登录已经接入后端的 `POST /user/logout` 接口，页面刷新后的登录态恢复已经接入 `GET /user/current`，当前登录用户资料修改已经接入 `POST /user/profile/update`。
 
 后端现在已经统一响应格式：Controller 返回 `BaseResponse<T>`，业务失败抛出 `BusinessException`，再由 `GlobalExceptionHandler` 转换为统一的错误响应。前端请求层已经集中处理该结构，业务代码通常直接拿到响应里的 `data`。
 
@@ -36,3 +37,9 @@ npm run build
 - 管理员用户管理页新增邀请码工具区，可以生成邀请码，也可以手动校验邀请码是否可用。
 - 注册页不单独放“校验邀请码”按钮，最终可用性以后端注册接口为准。
 - 2026-05-30 更新后，页面文案已经按正式应用服务调整，不再向普通用户暴露后端、Session、接口等实现细节。
+
+资料页模块当前已经接入前端：
+
+- 普通用户登录后默认进入 `/profile`，只能看到“我的资料”入口。
+- 管理员仍默认进入 `/users`，并额外可以进入 `/profile` 修改自己的基础资料。
+- 资料页支持修改昵称、头像 URL、性别、手机号和邮箱，不修改账号、密码、角色或状态。

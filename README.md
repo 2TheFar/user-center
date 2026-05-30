@@ -1,6 +1,6 @@
 # user-center
 
-`user-center` 是一个基于 Spring Boot 的用户中心项目，当前聚焦于用户注册、登录、登录态维护、注册码准入、管理员查询用户和管理员删除用户等基础能力。项目使用 MyBatis-Plus 访问 MySQL，通过 Session 保存登录态，适合作为用户体系、权限控制和后续业务系统登录模块的起点。
+`user-center` 是一个基于 Spring Boot 的用户中心项目，当前聚焦于用户注册、登录、登录态维护、个人资料维护、注册码准入、管理员查询用户和管理员删除用户等基础能力。项目使用 MyBatis-Plus 访问 MySQL，通过 Session 保存登录态，适合作为用户体系、权限控制和后续业务系统登录模块的起点。
 
 ## 项目功能
 
@@ -10,6 +10,7 @@
 - 注册码校验：支持检查注册码格式是否正确、是否存在且未使用。
 - 用户登录：校验账号密码，登录成功后返回脱敏用户信息，并把用户登录态写入 Session。
 - 当前用户恢复：支持根据浏览器携带的 `JSESSIONID` 从 Session 中读取当前登录用户，用于页面刷新后恢复前端登录态。
+- 修改个人资料：普通用户和管理员都可以修改自己的昵称、头像、手机号、邮箱和性别，保存后会刷新 Session 中的当前用户信息。
 - 用户退出登录：移除当前 Session 中的用户登录态。
 - 用户脱敏：对外返回用户信息时移除密码、逻辑删除标记、更新时间等敏感或内部字段。
 - 管理员查询用户：管理员可按用户名模糊查询用户列表。
@@ -467,6 +468,64 @@ GET /user/current
 
 前端会在应用启动时调用该接口。如果返回当前用户，就重新写入 Pinia 的 `currentUser`；如果未登录，则保持前端未登录状态。
 
+### 修改当前用户资料
+
+```http
+POST /user/profile/update
+Content-Type: application/json
+```
+
+行为：
+
+- 必须已登录，后端通过当前请求的 `JSESSIONID` 找到 Session，再从 `userLoginState` 读取当前用户 ID。
+- 只允许修改当前登录用户自己的资料，不接受前端传入的用户 ID。
+- 允许修改字段：`username`、`avatarUrl`、`phone`、`email`、`gender`。
+- 不允许通过该接口修改 `userAccount`、`userPassword`、`userRole`、`userStatus`、`createTime`、`updateTime`、`isDeleted`。
+- 保存成功后重新查询用户、脱敏返回，并同步刷新 Session 中的当前用户信息。
+
+请求体：
+
+```json
+{
+  "username": "鱼鸢",
+  "avatarUrl": "https://example.com/avatar.png",
+  "phone": "13812345678",
+  "email": "99@qq.com",
+  "gender": 1
+}
+```
+
+字段校验：
+
+| 字段 | 规则 |
+| --- | --- |
+| `username` | 可为空；非空时长度不超过 256 |
+| `avatarUrl` | 可为空；非空时长度不超过 1024，且必须以 `http://` 或 `https://` 开头 |
+| `phone` | 可为空；非空时需符合 `^1[3-9]\d{9}$` |
+| `email` | 可为空；非空时长度不超过 256，并符合基础邮箱格式 |
+| `gender` | 可为空；非空时只能是 `0` 或 `1` |
+
+成功响应：
+
+```json
+{
+  "code": 0,
+  "data": {
+    "id": 1,
+    "username": "鱼鸢",
+    "userAccount": "testAccount1",
+    "avatarUrl": "https://example.com/avatar.png",
+    "phone": "13812345678",
+    "email": "99@qq.com",
+    "gender": 1,
+    "userStatus": 0,
+    "createTime": "2026-05-21T00:00:00.000+00:00",
+    "userRole": 0
+  },
+  "message": "ok"
+}
+```
+
 ### 用户退出登录
 
 ```http
@@ -643,6 +702,16 @@ curl -X POST http://localhost:8080/user/delete \
 - `userPassword`
 - `updateTime`
 - `isDeleted`
+
+### 个人资料修改规则
+
+个人资料修改逻辑位于 `UserServiceImpl#updateCurrentUserProfile`：
+
+- 使用 `request.getSession(false)` 获取已有 Session；没有 Session 时直接返回未登录错误，不为未登录请求创建空 Session。
+- Session 存在但没有 `userLoginState`，或登录用户 ID 不合法时，也返回未登录错误。
+- 字符串字段会先去掉前后空格，空字符串会转换为 `null`，方便用户主动清空可选资料。
+- 更新条件固定为当前登录用户 ID，避免用户通过请求体修改其他账号资料。
+- 更新成功后复用 `getSafeUser` 返回脱敏用户，并把最新用户信息写回 Session。
 
 ## 角色与权限
 

@@ -41,6 +41,15 @@ public interface UserService extends IService<User> {
      */
     void userLogout(HttpServletRequest request);
 
+    /**
+     * 修改当前登录用户的个人资料
+     *
+     * @param userProfile 允许更新的个人资料字段
+     * @param request Web请求
+     * @return 更新后的脱敏用户信息
+     */
+    User updateCurrentUserProfile(User userProfile, HttpServletRequest request);
+
     @NonNull User getSafeUser(User user);
 
 

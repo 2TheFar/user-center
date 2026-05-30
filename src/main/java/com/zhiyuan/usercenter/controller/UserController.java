@@ -10,6 +10,7 @@ import com.zhiyuan.usercenter.constant.UserConstant;
 import com.zhiyuan.usercenter.model.domain.User;
 import com.zhiyuan.usercenter.model.domain.request.UserLoginRequest;
 import com.zhiyuan.usercenter.model.domain.request.UserRegisterRequest;
+import com.zhiyuan.usercenter.model.domain.request.UserUpdateProfileRequest;
 import com.zhiyuan.usercenter.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -76,6 +77,23 @@ public class UserController {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         return ResultUtils.success(currentUser);
+    }
+
+    @PostMapping("/profile/update")
+    public BaseResponse<User> updateCurrentUserProfile(@RequestBody UserUpdateProfileRequest updateProfileRequest,
+                                                       HttpServletRequest request) {
+        if (updateProfileRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User userProfile = new User();
+        userProfile.setUsername(updateProfileRequest.getUsername());
+        userProfile.setAvatarUrl(updateProfileRequest.getAvatarUrl());
+        userProfile.setPhone(updateProfileRequest.getPhone());
+        userProfile.setEmail(updateProfileRequest.getEmail());
+        userProfile.setGender(updateProfileRequest.getGender());
+
+        User updatedUser = userService.updateCurrentUserProfile(userProfile, request);
+        return ResultUtils.success(updatedUser);
     }
 
     // 查询用户方法

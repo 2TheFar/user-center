@@ -1,16 +1,22 @@
 <template>
   <a-layout-header class="app-header">
-    <button class="header-brand" type="button" @click="goUsers">
+    <button class="header-brand" type="button" @click="goHome">
       <div class="brand-mark compact">UC</div>
       <span>用户中心</span>
     </button>
 
     <nav class="header-nav" aria-label="页面导航">
-      <a-button :type="isUsersPage ? 'primary' : 'text'" @click="goUsers">
+      <a-button v-if="userStore.isAdmin" :type="isUsersPage ? 'primary' : 'text'" @click="goUsers">
         <template #icon>
           <TeamOutlined />
         </template>
         用户管理
+      </a-button>
+      <a-button v-if="userStore.currentUser" :type="isProfilePage ? 'primary' : 'text'" @click="goProfile">
+        <template #icon>
+          <IdcardOutlined />
+        </template>
+        我的资料
       </a-button>
       <a-button v-if="showGuestLinks && !isLoginPage" type="text" @click="goLogin">
         <template #icon>
@@ -50,7 +56,13 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
-import { LoginOutlined, LogoutOutlined, TeamOutlined, UserAddOutlined } from '@ant-design/icons-vue';
+import {
+  IdcardOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+  TeamOutlined,
+  UserAddOutlined,
+} from '@ant-design/icons-vue';
 
 import { logoutUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
@@ -60,7 +72,8 @@ const router = useRouter();
 const userStore = useUserStore();
 const logoutLoading = ref(false);
 
-const isUsersPage = computed(() => route.path === '/users' || route.path === '/');
+const isUsersPage = computed(() => route.path === '/users');
+const isProfilePage = computed(() => route.path === '/profile' || route.path === '/');
 const isLoginPage = computed(() => route.path === '/login');
 const isRegisterPage = computed(() => route.path === '/register');
 const showGuestLinks = computed(
@@ -71,8 +84,20 @@ const displayName = computed(
 );
 const userInitial = computed(() => displayName.value.slice(0, 1).toUpperCase());
 
+function goHome() {
+  if (!userStore.currentUser) {
+    void router.push('/login');
+    return;
+  }
+  void router.push(userStore.isAdmin ? '/users' : '/profile');
+}
+
 function goUsers() {
   void router.push('/users');
+}
+
+function goProfile() {
+  void router.push('/profile');
 }
 
 function goLogin() {

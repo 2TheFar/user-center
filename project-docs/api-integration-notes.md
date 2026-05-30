@@ -47,6 +47,7 @@ http://localhost:8080/user/search
 - `POST /user/register`
 - `POST /user/login`
 - `GET /user/current`
+- `POST /user/profile/update`
 - `POST /user/logout`
 - `GET /user/search`
 - `POST /user/delete`
@@ -54,6 +55,8 @@ http://localhost:8080/user/search
 - `GET /register-code/check`
 
 `GET /user/current` 用于刷新页面后恢复前端登录态：浏览器会自动带上 `JSESSIONID`，后端根据 Session 中的 `userLoginState` 返回当前用户。前端应用启动时会调用它，并把返回用户重新写入 Pinia。退出登录则通过 `POST /user/logout` 通知后端清理 Session，然后再清理前端状态。
+
+`POST /user/profile/update` 用于修改当前登录用户自己的资料。后端不会使用前端传入的用户 ID，而是从 Session 中取当前用户 ID，再只更新 `username`、`avatarUrl`、`phone`、`email`、`gender`。更新成功后接口返回最新脱敏用户，并刷新 Session 里的 `userLoginState`，前端保存后直接写回 Pinia。
 
 ## 统一响应格式更新
 
@@ -100,6 +103,18 @@ http://localhost:8080/user/search
 - 前端本地只做 12 位大小写字母或数字的格式校验，业务可用性以后端返回为准。
 
 一个容易误解的点是：校验接口 `data = false` 时，前端无法知道具体原因，只能提示“邀请码无效或已被使用”。如果以后想区分“不存在”和“已使用”，后端可以把 `data` 从布尔值升级成更明确的状态对象。
+
+## 普通用户资料页联调记录
+
+2026-05-31 增加了普通用户默认入口 `/profile`。普通用户以后只使用“我的资料”入口，不再进入用户管理页；管理员仍保留用户管理能力。
+
+当前路由规则：
+
+- `/`：未登录跳 `/login`，普通用户跳 `/profile`，管理员跳 `/users`。
+- `/profile`：需要登录，未登录时跳 `/login?redirect=/profile`。
+- `/users`：需要管理员，普通用户访问会回到 `/profile`。
+
+资料更新接口的字段口径和现有 `User` 表保持一致，没有新增数据库字段。手机号校验沿用偏中国大陆手机号的基础规则：`^1[3-9]\d{9}$`。邮箱只做基础格式校验，不做验证码绑定流程。
 
 ## 启动时的一个小坑
 

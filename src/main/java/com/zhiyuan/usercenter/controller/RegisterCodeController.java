@@ -44,7 +44,7 @@ public class RegisterCodeController {
      * 校验注册码是否可用
      *
      * @param code 注册码
-     * @return 是否可用
+     * @return 是否可用，可用不可用都是答案，不属于异常
      */
     @GetMapping("/check")
     public BaseResponse<Boolean> checkCode(String code) {

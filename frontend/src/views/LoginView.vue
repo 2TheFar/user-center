@@ -54,7 +54,7 @@ import { message, type FormProps } from 'ant-design-vue';
 import AuthShell from '@/components/AuthShell.vue';
 import { loginUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
-import type { LoginPayload } from '@/types/user';
+import type { LoginPayload, User } from '@/types/user';
 
 const router = useRouter();
 const route = useRoute();
@@ -82,11 +82,23 @@ async function handleLogin() {
 
     userStore.setCurrentUser(user);
     message.success('登录成功');
-    await router.push(typeof route.query.redirect === 'string' ? route.query.redirect : '/users');
+    await router.push(getPostLoginPath(user));
   } catch {
     // 统一错误提示由 request 拦截器处理。
   } finally {
     loading.value = false;
   }
+}
+
+function getPostLoginPath(user: User) {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '';
+  const defaultPath = user.userRole === 1 ? '/users' : '/profile';
+  if (!redirect || !redirect.startsWith('/') || redirect === '/login' || redirect === '/register') {
+    return defaultPath;
+  }
+  if (redirect.startsWith('/users') && user.userRole !== 1) {
+    return '/profile';
+  }
+  return redirect;
 }
 </script>
