@@ -587,7 +587,6 @@ npm run build
 - 登录成功保存 Pinia 用户状态。
 - 注册页字段使用当前后端的 `confirmPassword` 和 `registerCode`。
 - 管理页继续对接 `/user/search` 和 `/user/delete`。
-- 注册码工具继续对接 `/register-code/generate` 和 `/register-code/check`。
+- 邀请码工具继续对接 `/register-code/generate` 和 `/register-code/check`。
 - 后续可以补 `/user/current`，解决刷新后前端登录态丢失问题。
 - 管理页权限最好用路由 meta + 后端权限错误双保险。
-
