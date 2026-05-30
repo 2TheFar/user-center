@@ -5,7 +5,7 @@
         <div class="brand-mark compact">UC</div>
         <span>用户中心</span>
       </button>
-      <a-space>
+      <a-space class="auth-nav">
         <a-button type="text" @click="goUsers">
           <template #icon>
             <TeamOutlined />
@@ -19,9 +19,23 @@
 
     <main class="auth-page">
       <section class="auth-intro">
-        <div class="brand-mark">UC</div>
+        <a-tag color="cyan">账号管理平台</a-tag>
         <h1>用户中心</h1>
-        <p>轻量、清晰的用户登录与管理入口。</p>
+        <p>统一管理账号信息，快速完成登录、注册与用户维护。</p>
+        <div class="auth-metrics" aria-label="核心能力">
+          <div>
+            <strong>安全</strong>
+            <span>账号登录</span>
+          </div>
+          <div>
+            <strong>清晰</strong>
+            <span>用户管理</span>
+          </div>
+          <div>
+            <strong>便捷</strong>
+            <span>邀请注册</span>
+          </div>
+        </div>
       </section>
       <section class="auth-panel">
         <slot />

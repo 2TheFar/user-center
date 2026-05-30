@@ -12,8 +12,12 @@ import type { ThemeConfig } from 'ant-design-vue/es/config-provider/context';
 
 const theme: ThemeConfig = {
   token: {
-    colorPrimary: '#1677ff',
+    colorPrimary: '#0891b2',
+    colorSuccess: '#16a34a',
+    colorInfo: '#0891b2',
     borderRadius: 6,
+    colorBgLayout: '#f6f8fb',
+    colorText: '#172033',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
   },

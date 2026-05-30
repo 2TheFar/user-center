@@ -3,7 +3,7 @@
     <a-card class="auth-card" :bordered="false">
       <div class="form-heading">
         <h2>注册</h2>
-        <p>创建一个新的用户中心账号</p>
+        <p>请输入账号信息和邀请码完成注册。</p>
       </div>
 
       <a-form :model="formState" :rules="rules" layout="vertical" @finish="handleRegister">
@@ -44,10 +44,10 @@
           </a-input-password>
         </a-form-item>
 
-        <a-form-item label="注册码" name="registerCode">
+        <a-form-item label="邀请码" name="registerCode">
           <a-input
             v-model:value="formState.registerCode"
-            placeholder="请输入 12 位注册码"
+            placeholder="请输入 12 位邀请码"
             allow-clear
             autocomplete="off"
           >
@@ -57,7 +57,9 @@
           </a-input>
         </a-form-item>
 
-        <a-button type="primary" html-type="submit" block :loading="loading">注册</a-button>
+        <a-button type="primary" html-type="submit" block size="large" :loading="loading">
+          注册
+        </a-button>
       </a-form>
 
       <div class="auth-footer">
@@ -95,15 +97,27 @@ const registerErrorText: Record<number, string> = {
   [-4]: '账号只能包含字母、数字和下划线',
   [-5]: '两次输入的密码不一致',
   [-6]: '账号已存在或保存失败',
-  [-7]: '注册码无效或已被使用',
-  [-8]: '注册失败，注册码消费失败',
+  [-7]: '邀请码无效或已被使用',
+  [-8]: '注册失败，请稍后重试',
 };
 
 const rules: FormProps['rules'] = {
-  userAccount: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-  userPassword: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  userAccount: [
+    { required: true, message: '请输入账号', trigger: 'blur' },
+    { min: 6, message: '账号至少 6 位', trigger: 'blur' },
+    {
+      pattern: /^[a-zA-Z0-9_]+$/,
+      message: '账号只能包含字母、数字和下划线',
+      trigger: 'blur',
+    },
+  ],
+  userPassword: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 8, message: '密码至少 8 位', trigger: 'blur' },
+  ],
   confirmPassword: [
     { required: true, message: '请确认密码', trigger: 'blur' },
+    { min: 8, message: '确认密码至少 8 位', trigger: 'blur' },
     {
       validator: async (_rule, value: string) => {
         if (value && value !== formState.userPassword) {
@@ -115,10 +129,10 @@ const rules: FormProps['rules'] = {
     },
   ],
   registerCode: [
-    { required: true, message: '请输入注册码', trigger: 'blur' },
+    { required: true, message: '请输入邀请码', trigger: 'blur' },
     {
       pattern: /^[a-zA-Z0-9]{12}$/,
-      message: '注册码必须是 12 位大小写字母或数字',
+      message: '邀请码必须是 12 位大小写字母或数字',
       trigger: 'blur',
     },
   ],
@@ -138,6 +152,8 @@ async function handleRegister() {
     }
 
     message.error(registerErrorText[result ?? -1] || '注册失败，请稍后重试');
+  } catch {
+    // 统一错误提示由 request 拦截器处理。
   } finally {
     loading.value = false;
   }

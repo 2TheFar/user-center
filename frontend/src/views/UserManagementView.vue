@@ -6,9 +6,15 @@
       <section class="page-title-row">
         <div>
           <h1>用户管理</h1>
-          <p>按用户名查询用户信息，管理员可删除用户。权限和登录态以后端 Session 为准。</p>
+          <p>查看用户信息、维护账号状态，并为新成员发放邀请码。</p>
         </div>
-        <a-space>
+        <a-space wrap>
+          <a-button v-if="!userStore.currentUser" @click="goLogin">
+            <template #icon>
+              <LoginOutlined />
+            </template>
+            登录
+          </a-button>
           <a-button :loading="loading" @click="fetchUsers">
             <template #icon>
               <ReloadOutlined />
@@ -18,38 +24,92 @@
         </a-space>
       </section>
 
+      <section class="dashboard-grid" aria-label="用户中心概览">
+        <div class="metric-card">
+          <span>用户总数</span>
+          <strong>{{ users.length }}</strong>
+          <small>当前列表中的用户数量</small>
+        </div>
+        <div class="metric-card">
+          <span>管理员</span>
+          <strong>{{ adminCount }}</strong>
+          <small>负责用户维护的账号</small>
+        </div>
+        <div class="metric-card">
+          <span>普通用户</span>
+          <strong>{{ normalUserCount }}</strong>
+          <small>正常使用平台的账号</small>
+        </div>
+      </section>
+
       <section class="current-user-panel">
-        <a-descriptions size="small" :column="{ xs: 1, sm: 2, md: 4 }" bordered>
-          <a-descriptions-item label="当前用户">
-            {{ userStore.currentUser?.userAccount || '页面刷新后无法自动恢复' }}
-          </a-descriptions-item>
+        <div class="current-user-main">
+          <a-avatar :src="userStore.currentUser?.avatarUrl || undefined" :size="48">
+            {{ getAvatarText(userStore.currentUser || {}) }}
+          </a-avatar>
+          <div>
+            <h2>{{ currentUserName }}</h2>
+            <p>{{ currentUserHint }}</p>
+          </div>
+        </div>
+        <a-descriptions size="small" :column="{ xs: 1, sm: 2, md: 4 }">
           <a-descriptions-item label="用户 ID">
             {{ userStore.currentUser?.id || '-' }}
           </a-descriptions-item>
-          <a-descriptions-item label="角色">
-            {{ formatRole(userStore.currentUser?.userRole) }}
+          <a-descriptions-item label="账号">
+            {{ userStore.currentUser?.userAccount || '-' }}
           </a-descriptions-item>
-          <a-descriptions-item label="登录态">
-            {{ userStore.currentUser ? '已记录到前端状态' : '仅以后端 Session 为准' }}
+          <a-descriptions-item label="角色">
+            <a-tag :color="userStore.isAdmin ? 'green' : 'blue'">
+              {{ formatRole(userStore.currentUser?.userRole) }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="登录状态">
+            {{ userStore.currentUser ? '已登录' : '未登录' }}
           </a-descriptions-item>
         </a-descriptions>
       </section>
 
-      <section v-if="userStore.isAdmin" class="toolbar">
-        <a-space wrap>
+      <section class="workspace-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>查找用户</h2>
+            <p>输入用户名可以快速定位用户，留空则查看全部用户。</p>
+          </div>
+        </div>
+        <div class="toolbar-row">
+          <a-input-search
+            v-model:value="searchKeyword"
+            placeholder="按用户名搜索"
+            enter-button="搜索"
+            allow-clear
+            :loading="loading"
+            @search="fetchUsers"
+          />
+          <a-button @click="resetSearch">清空</a-button>
+        </div>
+      </section>
+
+      <section v-if="userStore.isAdmin" class="workspace-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>邀请码</h2>
+            <p>为新成员生成邀请码，也可以检查邀请码是否仍可使用。</p>
+          </div>
+        </div>
+        <div class="toolbar-row register-code-row">
           <a-button type="primary" :loading="codeGenerating" @click="handleGenerateRegisterCode">
             <template #icon>
               <GiftOutlined />
             </template>
-            生成注册码
+            生成邀请码
           </a-button>
-          <a-typography-text v-if="generatedCode" code copyable>
+          <a-typography-text v-if="generatedCode" class="generated-code" code copyable>
             {{ generatedCode }}
           </a-typography-text>
           <a-input-search
             v-model:value="codeToCheck"
-            class="register-code-check"
-            placeholder="输入注册码后校验"
+            placeholder="输入 12 位邀请码"
             enter-button="校验"
             allow-clear
             :loading="codeChecking"
@@ -57,88 +117,98 @@
           />
           <a-tag v-if="codeCheckResult === true" color="success">可用</a-tag>
           <a-tag v-else-if="codeCheckResult === false" color="error">不可用</a-tag>
-        </a-space>
+        </div>
       </section>
 
-      <section class="toolbar">
-        <a-input-search
-          v-model:value="searchKeyword"
-          placeholder="按用户名搜索"
-          enter-button="搜索"
-          allow-clear
+      <section class="table-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>用户列表</h2>
+            <p>集中查看账号、联系方式、角色和创建时间。</p>
+          </div>
+          <a-tag color="cyan">{{ users.length }} 条</a-tag>
+        </div>
+        <a-table
+          row-key="id"
+          :columns="columns"
+          :data-source="users"
           :loading="loading"
-          @search="fetchUsers"
-        />
+          :pagination="{ pageSize: 8, showSizeChanger: false, hideOnSinglePage: true }"
+          :scroll="{ x: 1120 }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'profile'">
+              <div class="user-cell">
+                <a-avatar :src="record.avatarUrl || undefined" :size="36">
+                  {{ getAvatarText(record) }}
+                </a-avatar>
+                <div>
+                  <strong>{{ record.username || '未命名用户' }}</strong>
+                  <span>{{ record.userAccount || '-' }}</span>
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="column.key === 'gender'">
+              {{ formatGender(record.gender) }}
+            </template>
+
+            <template v-else-if="column.key === 'userRole'">
+              <a-tag :color="record.userRole === 1 ? 'green' : 'blue'">
+                {{ formatRole(record.userRole) }}
+              </a-tag>
+            </template>
+
+            <template v-else-if="column.key === 'userStatus'">
+              <a-tag :color="record.userStatus === 0 || record.userStatus == null ? 'success' : 'warning'">
+                {{ formatStatus(record.userStatus) }}
+              </a-tag>
+            </template>
+
+            <template v-else-if="column.key === 'createTime'">
+              {{ formatDate(record.createTime) }}
+            </template>
+
+            <template v-else-if="column.key === 'action'">
+              <a-popconfirm
+                title="确认删除这个用户吗？"
+                ok-text="删除"
+                cancel-text="取消"
+                ok-type="danger"
+                @confirm="handleDelete(record.id)"
+              >
+                <a-button danger size="small" :disabled="!record.id">
+                  <template #icon>
+                    <DeleteOutlined />
+                  </template>
+                  删除
+                </a-button>
+              </a-popconfirm>
+            </template>
+          </template>
+
+          <template #emptyText>
+            <a-empty description="暂无用户数据" />
+          </template>
+        </a-table>
       </section>
-
-      <a-table
-        row-key="id"
-        :columns="columns"
-        :data-source="users"
-        :loading="loading"
-        :pagination="{ pageSize: 8, showSizeChanger: false }"
-        class="user-table"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'avatarUrl'">
-            <a-avatar :src="record.avatarUrl || undefined" :size="36">
-              {{ getAvatarText(record) }}
-            </a-avatar>
-          </template>
-
-          <template v-else-if="column.key === 'gender'">
-            {{ formatGender(record.gender) }}
-          </template>
-
-          <template v-else-if="column.key === 'userRole'">
-            <a-tag :color="record.userRole === 1 ? 'green' : 'blue'">
-              {{ formatRole(record.userRole) }}
-            </a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'userStatus'">
-            <a-tag :color="record.userStatus === 0 || record.userStatus == null ? 'success' : 'warning'">
-              {{ formatStatus(record.userStatus) }}
-            </a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'createTime'">
-            {{ formatDate(record.createTime) }}
-          </template>
-
-          <template v-else-if="column.key === 'action'">
-            <a-popconfirm
-              title="确认删除这个用户吗？"
-              ok-text="删除"
-              cancel-text="取消"
-              ok-type="danger"
-              @confirm="handleDelete(record.id)"
-            >
-              <a-button danger size="small" :disabled="!record.id">
-                <template #icon>
-                  <DeleteOutlined />
-                </template>
-                删除
-              </a-button>
-            </a-popconfirm>
-          </template>
-        </template>
-      </a-table>
     </a-layout-content>
   </a-layout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import type { TableColumnsType } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { DeleteOutlined, GiftOutlined, ReloadOutlined } from '@ant-design/icons-vue';
+import { DeleteOutlined, GiftOutlined, LoginOutlined, ReloadOutlined } from '@ant-design/icons-vue';
 
 import { checkRegisterCode, deleteUser, generateRegisterCode, searchUsers } from '@/api/user';
 import AppHeader from '@/components/AppHeader.vue';
 import { useUserStore } from '@/stores/user';
 import type { User } from '@/types/user';
 
+const router = useRouter();
 const userStore = useUserStore();
 const loading = ref(false);
 const codeGenerating = ref(false);
@@ -149,11 +219,18 @@ const generatedCode = ref('');
 const codeToCheck = ref('');
 const codeCheckResult = ref<boolean | null>(null);
 
+const adminCount = computed(() => users.value.filter((user) => user.userRole === 1).length);
+const normalUserCount = computed(() => users.value.length - adminCount.value);
+const currentUserName = computed(
+  () => userStore.currentUser?.username || userStore.currentUser?.userAccount || '请先登录',
+);
+const currentUserHint = computed(() =>
+  userStore.currentUser ? '您正在使用当前账号。' : '登录后即可查看和管理用户。',
+);
+
 const columns: TableColumnsType<User> = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-  { title: '头像', dataIndex: 'avatarUrl', key: 'avatarUrl', width: 88 },
-  { title: '账号', dataIndex: 'userAccount', key: 'userAccount', ellipsis: true },
-  { title: '用户名', dataIndex: 'username', key: 'username', ellipsis: true },
+  { title: 'ID', dataIndex: 'id', key: 'id', width: 76 },
+  { title: '用户', key: 'profile', width: 220 },
   { title: '邮箱', dataIndex: 'email', key: 'email', ellipsis: true },
   { title: '手机号', dataIndex: 'phone', key: 'phone', ellipsis: true },
   { title: '性别', dataIndex: 'gender', key: 'gender', width: 80 },
@@ -171,16 +248,17 @@ async function fetchUsers() {
   loading.value = true;
   try {
     const result = await searchUsers(searchKeyword.value.trim());
-    if (!Array.isArray(result)) {
-      users.value = [];
-      message.warning('未登录、无管理员权限，或后端未返回用户列表');
-      return;
-    }
-
-    users.value = result;
+    users.value = Array.isArray(result) ? result : [];
+  } catch {
+    users.value = [];
   } finally {
     loading.value = false;
   }
+}
+
+async function resetSearch() {
+  searchKeyword.value = '';
+  await fetchUsers();
 }
 
 async function handleDelete(id?: number) {
@@ -189,14 +267,18 @@ async function handleDelete(id?: number) {
     return;
   }
 
-  const success = await deleteUser(id);
-  if (!success) {
-    message.error('删除失败，请确认管理员权限');
-    return;
-  }
+  try {
+    const success = await deleteUser(id);
+    if (!success) {
+      message.error('删除失败，请稍后重试');
+      return;
+    }
 
-  message.success('删除成功');
-  await fetchUsers();
+    message.success('删除成功');
+    await fetchUsers();
+  } catch {
+    // 统一错误提示由 request 拦截器处理。
+  }
 }
 
 async function handleGenerateRegisterCode() {
@@ -204,14 +286,16 @@ async function handleGenerateRegisterCode() {
   try {
     const code = await generateRegisterCode();
     if (!code) {
-      message.error('生成失败，请确认当前账号是管理员且后端 Session 有效');
+      message.error('生成失败，请确认当前账号有管理权限');
       return;
     }
 
     generatedCode.value = code;
     codeToCheck.value = code;
     codeCheckResult.value = null;
-    message.success('注册码生成成功');
+    message.success('邀请码生成成功');
+  } catch {
+    // 统一错误提示由 request 拦截器处理。
   } finally {
     codeGenerating.value = false;
   }
@@ -221,11 +305,11 @@ async function handleCheckRegisterCode() {
   const code = codeToCheck.value.trim();
   codeCheckResult.value = null;
   if (!code) {
-    message.warning('请先输入注册码');
+    message.warning('请先输入邀请码');
     return;
   }
   if (!/^[a-zA-Z0-9]{12}$/.test(code)) {
-    message.warning('注册码必须是 12 位大小写字母或数字');
+    message.warning('邀请码必须是 12 位大小写字母或数字');
     return;
   }
 
@@ -234,14 +318,25 @@ async function handleCheckRegisterCode() {
     const available = await checkRegisterCode(code);
     codeCheckResult.value = available;
     if (available) {
-      message.success('注册码可用');
+      message.success('邀请码可用');
       return;
     }
 
-    message.error('注册码无效或已被使用');
+    message.error('邀请码无效或已被使用');
+  } catch {
+    // 统一错误提示由 request 拦截器处理。
   } finally {
     codeChecking.value = false;
   }
+}
+
+function goLogin() {
+  void router.push({
+    path: '/login',
+    query: {
+      redirect: '/users',
+    },
+  });
 }
 
 function formatGender(gender?: number | null) {

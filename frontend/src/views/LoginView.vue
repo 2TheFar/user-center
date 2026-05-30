@@ -3,7 +3,7 @@
     <a-card class="auth-card" :bordered="false">
       <div class="form-heading">
         <h2>登录</h2>
-        <p>使用账号和密码进入用户中心</p>
+        <p>欢迎回来，请登录后继续使用。</p>
       </div>
 
       <a-form :model="formState" :rules="rules" layout="vertical" @finish="handleLogin">
@@ -32,7 +32,9 @@
           </a-input-password>
         </a-form-item>
 
-        <a-button type="primary" html-type="submit" block :loading="loading">登录</a-button>
+        <a-button type="primary" html-type="submit" block size="large" :loading="loading">
+          登录
+        </a-button>
       </a-form>
 
       <div class="auth-footer">
@@ -45,7 +47,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { LockOutlined, UserOutlined } from '@ant-design/icons-vue';
 import { message, type FormProps } from 'ant-design-vue';
 
@@ -55,6 +57,7 @@ import { useUserStore } from '@/stores/user';
 import type { LoginPayload } from '@/types/user';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 const loading = ref(false);
 
@@ -79,7 +82,9 @@ async function handleLogin() {
 
     userStore.setCurrentUser(user);
     message.success('登录成功');
-    await router.push('/users');
+    await router.push(typeof route.query.redirect === 'string' ? route.query.redirect : '/users');
+  } catch {
+    // 统一错误提示由 request 拦截器处理。
   } finally {
     loading.value = false;
   }

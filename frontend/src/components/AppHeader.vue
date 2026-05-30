@@ -30,8 +30,11 @@
       <a-tag v-if="userStore.currentUser" :color="userStore.isAdmin ? 'green' : 'blue'">
         {{ userStore.isAdmin ? '管理员' : '普通用户' }}
       </a-tag>
+      <a-avatar v-if="userStore.currentUser" :src="userStore.currentUser.avatarUrl || undefined" :size="32">
+        {{ userInitial }}
+      </a-avatar>
       <span class="header-user">
-        {{ userStore.currentUser?.userAccount || '未登录' }}
+        {{ displayName }}
       </span>
       <a-button v-if="userStore.currentUser" type="text" danger :loading="logoutLoading" @click="logout">
         <template #icon>
@@ -63,6 +66,10 @@ const isRegisterPage = computed(() => route.path === '/register');
 const showGuestLinks = computed(
   () => !userStore.currentUser?.id && !userStore.currentUser?.userAccount,
 );
+const displayName = computed(
+  () => userStore.currentUser?.username || userStore.currentUser?.userAccount || '未登录',
+);
+const userInitial = computed(() => displayName.value.slice(0, 1).toUpperCase());
 
 function goUsers() {
   void router.push('/users');
@@ -89,7 +96,7 @@ async function logout() {
     message.success('退出登录成功');
     await router.push('/login');
   } catch {
-    message.error('退出登录失败，请确认后端服务和登录状态');
+    message.error('退出登录失败，请稍后重试');
   } finally {
     logoutLoading.value = false;
   }
