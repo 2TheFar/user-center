@@ -27,8 +27,11 @@ function unwrapResponse(response: AxiosResponse): unknown {
   }
 
   const errorText = result.description || result.message || '请求处理失败';
+  const isCurrentUserRequest = response.config.url?.includes('/user/current');
   if (result.code === 40100) {
-    message.warning('请先登录后再继续操作');
+    if (!isCurrentUserRequest) {
+      message.warning('请先登录后再继续操作');
+    }
   } else if (result.code === 40101) {
     message.warning('当前账号无权进行此操作');
   } else {

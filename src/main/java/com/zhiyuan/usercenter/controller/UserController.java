@@ -6,12 +6,14 @@ import com.zhiyuan.usercenter.common.BaseResponse;
 import com.zhiyuan.usercenter.common.BusinessException;
 import com.zhiyuan.usercenter.common.ErrorCode;
 import com.zhiyuan.usercenter.common.ResultUtils;
+import com.zhiyuan.usercenter.constant.UserConstant;
 import com.zhiyuan.usercenter.model.domain.User;
 import com.zhiyuan.usercenter.model.domain.request.UserLoginRequest;
 import com.zhiyuan.usercenter.model.domain.request.UserRegisterRequest;
 import com.zhiyuan.usercenter.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,6 +60,22 @@ public class UserController {
         // 这个userLogin是自己写的，如果失败了在Service就中断了，反之如果到了Controller肯定是成功了
         User user = userService.userLogin(userAccount, userPassword, request);
         return ResultUtils.success(user);
+    }
+
+    @GetMapping("/current")
+    public BaseResponse<User> getCurrentUser(HttpServletRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        Object userObj = session.getAttribute(UserConstant.USER_LOGIN_STATE);
+        if (!(userObj instanceof User currentUser)) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        return ResultUtils.success(currentUser);
     }
 
     // 查询用户方法

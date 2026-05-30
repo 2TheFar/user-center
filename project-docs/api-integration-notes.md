@@ -46,17 +46,14 @@ http://localhost:8080/user/search
 
 - `POST /user/register`
 - `POST /user/login`
+- `GET /user/current`
 - `POST /user/logout`
 - `GET /user/search`
 - `POST /user/delete`
 - `POST /register-code/generate`
 - `GET /register-code/check`
 
-没有看到：
-
-- `GET /user/current`
-
-所以前端在登录成功后可以保存用户信息，但刷新页面后没有官方接口恢复当前用户。退出登录已经能通知后端清理 Session，然后再清理前端状态。
+`GET /user/current` 用于刷新页面后恢复前端登录态：浏览器会自动带上 `JSESSIONID`，后端根据 Session 中的 `userLoginState` 返回当前用户。前端应用启动时会调用它，并把返回用户重新写入 Pinia。退出登录则通过 `POST /user/logout` 通知后端清理 Session，然后再清理前端状态。
 
 ## 统一响应格式更新
 

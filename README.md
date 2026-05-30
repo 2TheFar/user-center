@@ -9,6 +9,7 @@
 - 管理员生成注册码：管理员可生成 12 位大小写字母和数字混合的唯一注册码。
 - 注册码校验：支持检查注册码格式是否正确、是否存在且未使用。
 - 用户登录：校验账号密码，登录成功后返回脱敏用户信息，并把用户登录态写入 Session。
+- 当前用户恢复：支持根据浏览器携带的 `JSESSIONID` 从 Session 中读取当前登录用户，用于页面刷新后恢复前端登录态。
 - 用户退出登录：移除当前 Session 中的用户登录态。
 - 用户脱敏：对外返回用户信息时移除密码、逻辑删除标记、更新时间等敏感或内部字段。
 - 管理员查询用户：管理员可按用户名模糊查询用户列表。
@@ -428,7 +429,43 @@ curl -i -X POST http://localhost:8080/user/login \
   -d '{"userAccount":"testAccount1","userPassword":"testPassword1"}'
 ```
 
-如果后续要访问管理员接口，需要保留登录响应中的 `JSESSIONID` Cookie。
+如果后续要访问当前用户或管理员接口，需要保留登录响应中的 `JSESSIONID` Cookie。
+
+### 获取当前登录用户
+
+```http
+GET /user/current
+```
+
+行为：
+
+- 浏览器请求时会自动携带 `JSESSIONID` Cookie。
+- 后端根据 `JSESSIONID` 找到对应 Session，再读取 `userLoginState`。
+- 如果 Session 中存在登录用户，返回 `BaseResponse<User>`。
+- 如果未登录或 Session 已失效，返回 `NOT_LOGIN_ERROR`。
+
+成功响应：
+
+```json
+{
+  "code": 0,
+  "data": {
+    "id": 1,
+    "username": "otaku",
+    "userAccount": "testAccount1",
+    "avatarUrl": "https://example.com/avatar.png",
+    "phone": "13812345678",
+    "email": "123@qq.com",
+    "gender": 0,
+    "userStatus": 0,
+    "createTime": "2026-05-21T00:00:00.000+00:00",
+    "userRole": 1
+  },
+  "message": "ok"
+}
+```
+
+前端会在应用启动时调用该接口。如果返回当前用户，就重新写入 Pinia 的 `currentUser`；如果未登录，则保持前端未登录状态。
 
 ### 用户退出登录
 
@@ -709,7 +746,7 @@ curl -X POST http://localhost:8080/user/delete \
 
 - 将数据库密码、密码盐值等敏感配置移动到环境变量或独立配置文件。
 - 使用 BCrypt、Argon2 等更适合密码存储的哈希算法替代 MD5。
-- 增加获取当前登录用户接口。
+- 优化当前用户接口的测试覆盖和前端刷新恢复体验。
 - 完善权限控制，避免在 Controller 中手写管理员判断。
 - 增加参数校验注解，例如 `@Valid`、`@NotBlank`、`@Size`。
 - 增加测试隔离能力，避免测试依赖固定账号和本地数据库状态。

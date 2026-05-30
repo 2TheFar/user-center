@@ -99,6 +99,7 @@ RuntimeException -> BaseResponse(SYSTEM_ERROR)
 
 - `POST /user/register`：`BaseResponse<Long>`
 - `POST /user/login`：`BaseResponse<User>`
+- `GET /user/current`：`BaseResponse<User>`
 - `POST /user/logout`：`BaseResponse<Boolean>`
 - `GET /user/search`：`BaseResponse<List<User>>`
 - `POST /user/delete`：`BaseResponse<Boolean>`

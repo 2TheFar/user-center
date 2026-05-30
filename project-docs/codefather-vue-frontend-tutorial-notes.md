@@ -295,6 +295,7 @@ export const deleteUser = async (id: string) => {
 
 - `registerUser`
 - `loginUser`
+- `getCurrentUser`
 - `logoutUser`
 - `searchUsers`
 - `deleteUser`
@@ -331,11 +332,12 @@ export const useLoginUserStore = defineStore('loginUser', () => {
 - `isAdmin`
 - `setCurrentUser`
 - `clearCurrentUser`
+- `fetchCurrentUser`
 
 适配建议：
 
-- 如果后端补充 `/user/current` 接口，前端可以在应用启动时自动恢复登录态。
-- 在没有 `/user/current` 前，刷新页面后 Pinia 内存状态会丢失，但后端 Session 仍可能有效。
+- 当前项目已经补充 `/user/current` 接口，前端可以在应用启动时自动恢复登录态。
+- 刷新页面后 Pinia 内存状态会重新初始化，但前端会通过 `/user/current` 根据后端 Session 重新写入当前用户。
 
 ## 用户登录页面
 
@@ -382,6 +384,7 @@ const handleSubmit = async () => {
 
 - Axios 必须开启 `withCredentials: true`。
 - 本地开发时推荐使用 Vite 代理，减少跨域 Cookie 问题。
+- 应用启动时调用 `/user/current`，用后端 Session 恢复 Pinia 中的当前用户。
 - 后端接口权限仍以后端 Session 为准，前端的 Pinia 只用于展示和交互优化，不能作为真正安全边界。
 
 ## 用户注册页面
@@ -516,7 +519,7 @@ router.beforeEach(async (to, from, next) => {
 ```
 
 - 在 `router.beforeEach` 中读取 meta 判断权限。
-- 由于当前后端没有 `/user/current`，刷新后前端无法可靠恢复用户状态，因此权限守卫应和后端接口错误处理配合使用。
+- 当前后端已经有 `/user/current`，刷新后前端可以恢复用户状态；权限守卫仍应和后端接口错误处理配合使用。
 
 ## 多环境与部署
 
@@ -588,5 +591,5 @@ npm run build
 - 注册页字段使用当前后端的 `confirmPassword` 和 `registerCode`。
 - 管理页继续对接 `/user/search` 和 `/user/delete`。
 - 邀请码工具继续对接 `/register-code/generate` 和 `/register-code/check`。
-- 后续可以补 `/user/current`，解决刷新后前端登录态丢失问题。
+- 已补 `/user/current`，应用启动时会尝试恢复刷新后的前端登录态。
 - 管理页权限最好用路由 meta + 后端权限错误双保险。
