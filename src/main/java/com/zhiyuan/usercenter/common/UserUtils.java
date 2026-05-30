@@ -16,6 +16,8 @@ public class UserUtils {
             return false;
         }
         Object attribute = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        // 如果 attribute 等于 null 或者不是 User 类型时，就返回 false；
+        // 如果是，就顺便把它安全地转换成变量 user，避免手动强转出错。
         if (!(attribute instanceof User user)) {
             return false;
         }
