@@ -27,7 +27,7 @@ npm run lint
 npm run build
 ```
 
-后端接口通过 `/api` 代理到 `http://localhost:8080`，这样浏览器不会直接跨域访问后端。退出登录已经接入后端的 `POST /user/logout` 接口，页面刷新后的登录态恢复已经接入 `GET /user/current`，当前登录用户资料修改已经接入 `POST /user/profile/update`。
+后端接口通过 `/api` 代理到 `http://localhost:8080`，这样浏览器不会直接跨域访问后端。退出登录已经接入后端的 `POST /user/logout` 接口，页面刷新后的登录态恢复已经接入 `GET /user/current`，当前登录用户资料修改已经接入 `POST /user/profile/update`，头像上传和访问也已经接入。
 
 后端现在已经统一响应格式：Controller 返回 `BaseResponse<T>`，业务失败抛出 `BusinessException`，再由 `GlobalExceptionHandler` 转换为统一的错误响应。前端请求层已经集中处理该结构，业务代码通常直接拿到响应里的 `data`。
 
@@ -42,4 +42,4 @@ npm run build
 
 - 普通用户登录后默认进入 `/profile`，只能看到“我的资料”入口。
 - 管理员仍默认进入 `/users`，并额外可以进入 `/profile` 修改自己的基础资料。
-- 资料页支持修改昵称、头像 URL、性别、手机号和邮箱，不修改账号、密码、角色或状态。
+- 资料页支持修改昵称、头像、性别、手机号和邮箱，不修改账号、密码、角色或状态。

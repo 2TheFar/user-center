@@ -36,7 +36,7 @@
       <a-tag v-if="userStore.currentUser" :color="userStore.isAdmin ? 'green' : 'blue'">
         {{ userStore.isAdmin ? '管理员' : '普通用户' }}
       </a-tag>
-      <a-avatar v-if="userStore.currentUser" :src="userStore.currentUser.avatarUrl || undefined" :size="32">
+      <a-avatar v-if="userStore.currentUser" :src="currentUserAvatarSrc || undefined" :size="32">
         {{ userInitial }}
       </a-avatar>
       <span class="header-user">
@@ -66,6 +66,7 @@ import {
 
 import { logoutUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
+import { resolveAvatarSrc } from '@/utils/avatar';
 
 const route = useRoute();
 const router = useRouter();
@@ -83,6 +84,7 @@ const displayName = computed(
   () => userStore.currentUser?.username || userStore.currentUser?.userAccount || '未登录',
 );
 const userInitial = computed(() => displayName.value.slice(0, 1).toUpperCase());
+const currentUserAvatarSrc = computed(() => resolveAvatarSrc(userStore.currentUser?.avatarUrl));
 
 function goHome() {
   if (!userStore.currentUser) {

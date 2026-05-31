@@ -8,6 +8,7 @@ import com.zhiyuan.usercenter.common.ErrorCode;
 import com.zhiyuan.usercenter.constant.UserConstant;
 import com.zhiyuan.usercenter.mapper.UserMapper;
 import com.zhiyuan.usercenter.model.domain.User;
+import com.zhiyuan.usercenter.service.AvatarStorageService;
 import com.zhiyuan.usercenter.service.RegisterCodeService;
 import com.zhiyuan.usercenter.service.UserService;
 import jakarta.annotation.Resource;
@@ -313,8 +314,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             if (avatarUrl.length() > MAX_AVATAR_URL_LENGTH) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "头像地址过长");
             }
-            if (!avatarUrl.startsWith("http://") && !avatarUrl.startsWith("https://")) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "头像地址必须以 http:// 或 https:// 开头");
+            // 防止前端或接口调用方绕过上传接口，直接把任意字符串写进数据库的 avatarUrl 字段。
+            if (!avatarUrl.startsWith(AvatarStorageService.AVATAR_URL_PREFIX)) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "请先上传本地头像图片");
             }
         }
         /*

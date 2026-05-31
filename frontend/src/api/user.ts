@@ -31,6 +31,12 @@ export function updateCurrentUserProfile(payload: UpdateProfilePayload) {
   return request.post<unknown, User | null>('/user/profile/update', payload);
 }
 
+export function uploadCurrentUserAvatar(file: File) {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  return request.post<unknown, string | null>('/user/avatar/upload', formData);
+}
+
 export function searchUsers(username?: string) {
   return request.get<unknown, User[] | null>('/user/search', {
     params: {

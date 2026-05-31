@@ -454,7 +454,7 @@ GET /user/current
     "id": 1,
     "username": "otaku",
     "userAccount": "testAccount1",
-    "avatarUrl": "https://example.com/avatar.png",
+    "avatarUrl": "/user/avatar/example.png",
     "phone": "13812345678",
     "email": "123@qq.com",
     "gender": 0,
@@ -488,7 +488,7 @@ Content-Type: application/json
 ```json
 {
   "username": "鱼鸢",
-  "avatarUrl": "https://example.com/avatar.png",
+  "avatarUrl": "/user/avatar/example.png",
   "phone": "13812345678",
   "email": "99@qq.com",
   "gender": 1
@@ -500,7 +500,7 @@ Content-Type: application/json
 | 字段 | 规则 |
 | --- | --- |
 | `username` | 可为空；非空时长度不超过 256 |
-| `avatarUrl` | 可为空；非空时长度不超过 1024，且必须以 `http://` 或 `https://` 开头 |
+| `avatarUrl` | 可为空；非空时长度不超过 1024，且必须是 `/user/avatar/...` 站内头像路径 |
 | `phone` | 可为空；非空时需符合 `^1[3-9]\d{9}$` |
 | `email` | 可为空；非空时长度不超过 256，并符合基础邮箱格式 |
 | `gender` | 可为空；非空时只能是 `0` 或 `1` |
@@ -514,7 +514,7 @@ Content-Type: application/json
     "id": 1,
     "username": "鱼鸢",
     "userAccount": "testAccount1",
-    "avatarUrl": "https://example.com/avatar.png",
+    "avatarUrl": "/user/avatar/example.png",
     "phone": "13812345678",
     "email": "99@qq.com",
     "gender": 1,
@@ -573,7 +573,7 @@ GET /user/search?username=otaku
       "username": "otaku",
       "userAccount": "testAccount1",
       "userPassword": null,
-      "avatarUrl": "https://example.com/avatar.png",
+      "avatarUrl": "/user/avatar/example.png",
       "phone": "13812345678",
       "email": "123@qq.com",
       "gender": 0,

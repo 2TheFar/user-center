@@ -48,6 +48,8 @@ http://localhost:8080/user/search
 - `POST /user/login`
 - `GET /user/current`
 - `POST /user/profile/update`
+- `POST /user/avatar/upload`
+- `GET /user/avatar/{fileName}`
 - `POST /user/logout`
 - `GET /user/search`
 - `POST /user/delete`
@@ -57,6 +59,8 @@ http://localhost:8080/user/search
 `GET /user/current` 用于刷新页面后恢复前端登录态：浏览器会自动带上 `JSESSIONID`，后端根据 Session 中的 `userLoginState` 返回当前用户。前端应用启动时会调用它，并把返回用户重新写入 Pinia。退出登录则通过 `POST /user/logout` 通知后端清理 Session，然后再清理前端状态。
 
 `POST /user/profile/update` 用于修改当前登录用户自己的资料。后端不会使用前端传入的用户 ID，而是从 Session 中取当前用户 ID，再只更新 `username`、`avatarUrl`、`phone`、`email`、`gender`。更新成功后接口返回最新脱敏用户，并刷新 Session 里的 `userLoginState`，前端保存后直接写回 Pinia。
+
+头像现在单独走上传和访问接口。后端把图片保存到本地 `uploads/avatars`，资料更新接口只保存 `/user/avatar/xxx.png` 这种站内路径。
 
 ## 统一响应格式更新
 

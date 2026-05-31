@@ -44,7 +44,7 @@
 
       <section class="current-user-panel">
         <div class="current-user-main">
-          <a-avatar :src="userStore.currentUser?.avatarUrl || undefined" :size="48">
+          <a-avatar :src="resolveAvatarSrc(userStore.currentUser?.avatarUrl) || undefined" :size="48">
             {{ getAvatarText(userStore.currentUser || {}) }}
           </a-avatar>
           <div>
@@ -139,7 +139,7 @@
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'profile'">
               <div class="user-cell">
-                <a-avatar :src="record.avatarUrl || undefined" :size="36">
+                <a-avatar :src="resolveAvatarSrc(record.avatarUrl) || undefined" :size="36">
                   {{ getAvatarText(record) }}
                 </a-avatar>
                 <div>
@@ -207,6 +207,7 @@ import { checkRegisterCode, deleteUser, generateRegisterCode, searchUsers } from
 import AppHeader from '@/components/AppHeader.vue';
 import { useUserStore } from '@/stores/user';
 import type { User } from '@/types/user';
+import { resolveAvatarSrc } from '@/utils/avatar';
 
 const router = useRouter();
 const userStore = useUserStore();

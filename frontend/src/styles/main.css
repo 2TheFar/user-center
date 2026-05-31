@@ -395,6 +395,79 @@ a:hover {
   margin-bottom: 24px;
 }
 
+.avatar-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 72px;
+}
+
+.avatar-upload-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.avatar-file-input {
+  display: none;
+}
+
+.avatar-cropper {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+
+.avatar-crop-stage {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.avatar-crop-stage.is-dragging {
+  cursor: grabbing;
+}
+
+.avatar-crop-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  object-fit: cover;
+  transform-origin: center center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.avatar-crop-hint {
+  margin: -6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.avatar-crop-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.avatar-crop-controls label {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  color: #475569;
+}
+
 .generated-code {
   padding: 6px 10px;
   border-radius: 6px;
